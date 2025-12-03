@@ -1,4 +1,4 @@
-# 🌐 VoiceTravel – Voice-Based Hotel Booking Website
+# 🌐 VoiceTravel – Audio-Based Hotel Booking Website
 
 ## 📝 Problem Description
 Traditional online hotel booking platforms require users to manually enter multiple details such as destination, dates, guest count, and personal information. This process can be time-consuming, confusing for non-technical users, and inconvenient when multitasking or traveling. There is a clear need for a hands-free, intuitive, and conversational booking experience that reduces user effort and eliminates the complexity of navigating through multiple screens or forms.
