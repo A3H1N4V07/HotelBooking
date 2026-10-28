@@ -1,6 +1,6 @@
 import React from 'react'
 
-function ErorComponent() {
+function ErrorComponent() {
     return (
         <div style={{
             display: 'flex',
@@ -18,4 +18,4 @@ function ErorComponent() {
     )
 }
 
-export default ErorComponent
+export default ErrorComponent

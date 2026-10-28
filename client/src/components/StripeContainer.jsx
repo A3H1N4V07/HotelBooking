@@ -2,16 +2,16 @@ import React from 'react'
 import {Elements} from "@stripe/react-stripe-js"
 import { loadStripe } from '@stripe/stripe-js';
 import PaymentForm from './PaymentForm';
-const PUBLIC_KEY = "pk_test_51MgiacSE7xfVzBsJBnn9e4rbxEUf8RHJ0cfhiOmbDfC8c3icMfAUamlZ5z8dIkCV1knhVCHgM3ydzWJh3nXtc2DV00zFj9JHuE"
-const stripeTestPromise = loadStripe(PUBLIC_KEY);
+
+const stripeTestPromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 
-function StripeContainer() {
+function StripeContainer({ bookingId }) {
     return (
         <Elements stripe={stripeTestPromise}>
-            <PaymentForm/>
+            <PaymentForm bookingId={bookingId} />
         </Elements>
     )
 }
 
-export default StripeContainer
+export default StripeContainer;
