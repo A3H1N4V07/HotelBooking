@@ -1,36 +1,20 @@
 export default [
     {
-        dialog: "Name: My First Name is *"
+        dialog: "Destination: My destination is *"
     },
     {
-        dialog: "Name: My last Name is *"
+        dialog: "Check-in: I want to book hotel from *"
     },
     {
-        dialog: "Age: I am * years old"
-    },
-    {
-        dialog: "Origin: I want to go from * "
-    },
-    {
-        dialog: "Destination: to *"
-    },
-    {
-        dialog: "Travel Date: I have a ticket on * "
-    },
-    {
-        dialog: "CheckIn date: I want to book hotel from *"
-    },
-    {
-        dialog: "CheckOut date: Till *"
+        dialog: "Check-out: Till *"
     },
     {
         dialog: "Guests: we are * people"
     },
     {
-        dialog: "Phone No: My phone number is *"
+        dialog: "Navigate: Show hotels / Open my bookings / Open admin dashboard"
     },
     {
-        dialog: "Email:  My email address is *"
+        dialog: "Logout: Logout"
     },
-
 ]
