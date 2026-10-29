@@ -10,9 +10,23 @@ const {
   uploadedImageUrl,
   deleteUploadedImage,
 } = require("../services/hotelInput");
+const { resolveCity } = require("../services/cityMatch");
 const { Op } = require("sequelize");
 
 const { Hotel, Booking } = require("../models");
+
+// Corrects spellings/alternate names ("Bengaluru", "Bengalore") to a city
+// that actually exists in the Hotels table.
+async function resolveSearchCity(city) {
+  if (!city) return city;
+
+  const rows = await Hotel.findAll({
+    attributes: [[Hotel.sequelize.fn("DISTINCT", Hotel.sequelize.col("city")), "city"]],
+    raw: true,
+  });
+
+  return resolveCity(city, rows.map((row) => row.city));
+}
 
 // Search hotels by city
 function buildHotelWhereAndOrder({ city, category, sortBy, order }) {
@@ -40,7 +54,7 @@ router.get("/search", async (req, res) => {
     const { city, category, sortBy, order } = req.query;
 
     const { where, order: orderClause } = buildHotelWhereAndOrder({
-      city,
+      city: await resolveSearchCity(city),
       category,
       sortBy,
       order,
@@ -188,7 +202,7 @@ router.post("/recommend", aiLimiter, async (req, res) => {
     const filters = await extractHotelFilters(query);
 
     const { where, order: orderClause } = buildHotelWhereAndOrder({
-      city: filters.city,
+      city: await resolveSearchCity(filters.city),
       category: filters.category,
       sortBy: filters.sortBy,
       order: "asc",
