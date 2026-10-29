@@ -9,7 +9,8 @@ module.exports = (sequelize, DataTypes) => {
 
         stripePaymentId: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            unique: true
         },
 
         amount: {
