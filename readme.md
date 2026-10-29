@@ -36,9 +36,12 @@ Prerequisites: Node.js 18+ and a MySQL database.
 ```bash
 cd server
 npm install
-npm run dev          # nodemon, restarts on changes (use `npm start` in production)
+npm run db:migrate   # create/update the database tables
 npm run seed:hotels  # optional: fill the Hotels table with sample data
+npm run dev          # nodemon, restarts on changes (use `npm start` in production)
 ```
+
+The database schema is managed by migrations in `server/migrations/`. The server never changes tables itself and refuses to start while a migration is pending. To change the schema, add a new migration (`npx sequelize-cli migration:generate --name <what-changes>`), update the model to match, then run `npm run db:migrate`. `npm run db:migrate:status` shows what has run; `npm run db:migrate:undo` rolls back the last one.
 
 Create `server/.env` with these variables (values not shown — never commit this file):
 
@@ -54,7 +57,7 @@ Create `server/.env` with these variables (values not shown — never commit thi
 | `SERVER_PUBLIC_URL` | Optional. Public base URL used for uploaded image links |
 | `TRUST_PROXY` | Optional. Set when running behind a reverse proxy |
 | `PORT` | Optional. Defaults to `3001` |
-| `NODE_ENV` | Set to `production` to disable automatic table altering on start |
+| `NODE_ENV` | Optional. Selects the database config in `config/config.js` (`development` by default) |
 
 ### Client (`client/`)
 ```bash

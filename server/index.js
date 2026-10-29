@@ -6,6 +6,7 @@ const path = require("path");
 const helmet = require("helmet");
 const multer = require("multer");
 const { apiLimiter } = require("./middleware/rateLimit");
+const { pendingMigrations } = require("./services/pendingMigrations");
 
 const PORT = process.env.PORT || 3001;
 
@@ -77,16 +78,29 @@ app.use((err, req, res, next) => {
 });
 
 // =========================
-// Database Sync & Server
+// Database & Server
 // =========================
-// alter: true rewrites tables to match the models, which can drop or mangle
-// columns on real data. Only do it in development; use migrations for prod.
-const isProduction = process.env.NODE_ENV === "production";
+// The schema is owned by migrations (server/migrations, `npm run db:migrate`).
+// The server never alters tables itself; it refuses to start on an
+// out-of-date schema instead of failing later on a missing column.
+async function start() {
+  await db.sequelize.authenticate();
 
-db.sequelize.sync(isProduction ? {} : { alter: true }).then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}).catch((err) => {
-    console.error('Database connection failed:', err);
+  const pending = await pendingMigrations(db.sequelize);
+
+  if (pending.length > 0) {
+    console.error(
+      `Database schema is out of date. Run "npm run db:migrate" first.\nPending: ${pending.join(", ")}`
+    );
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('Database connection failed:', err);
+  process.exit(1);
 });

@@ -134,7 +134,8 @@ async function seed() {
       process.exit(1);
     }
 
-    await sequelize.sync();
+    // Tables come from migrations (`npm run db:migrate`), not sync().
+    await sequelize.authenticate();
 
     const existing = await Hotel.count();
 
