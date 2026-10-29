@@ -50,6 +50,7 @@ Create `server/.env` with these variables (values not shown — never commit thi
 | `DB_HOST`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DIALECT` | MySQL connection |
 | `JWT_SECRET` | Signs login tokens |
 | `STRIPE_SECRET_TEST` | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret (`whsec_…`) for `POST /payment/webhook` — see below |
 | `GMAIL`, `GMAIL_SECRET_KEY` | Gmail account + app password for emails |
 | `GEMINI_API_KEY` | Voice commands and AI search |
 | `PEXELS_API_KEY` | Only for `seed:hotels` |
@@ -58,6 +59,18 @@ Create `server/.env` with these variables (values not shown — never commit thi
 | `TRUST_PROXY` | Optional. Set when running behind a reverse proxy |
 | `PORT` | Optional. Defaults to `3001` |
 | `NODE_ENV` | Optional. Selects the database config in `config/config.js` (`development` by default) |
+
+#### Stripe webhook
+Stripe reports every payment result to `POST /payment/webhook`. This is what marks a booking as paid even if the browser request was lost after the card was charged, so run it in development too:
+
+1. Install the [Stripe CLI](https://docs.stripe.com/stripe-cli) and run `stripe login` once.
+2. Forward events to the local server:
+   ```bash
+   stripe listen --events payment_intent.succeeded,payment_intent.payment_failed --forward-to localhost:3001/payment/webhook
+   ```
+3. Copy the `whsec_…` secret it prints into `STRIPE_WEBHOOK_SECRET` and restart the server.
+
+In production, add an endpoint for `https://<your-server>/payment/webhook` in the Stripe Dashboard (Developers → Webhooks) with the same two events, and use that endpoint's signing secret.
 
 ### Client (`client/`)
 ```bash

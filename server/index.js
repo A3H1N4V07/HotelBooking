@@ -27,6 +27,15 @@ app.use(
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
+
+// Stripe webhook: registered before the JSON parser (signature checks need
+// the raw body) and before the rate limiter (Stripe retries must get through).
+app.post(
+  "/payment/webhook",
+  express.raw({ type: "application/json", limit: "1mb" }),
+  require("./routes/StripeWebhook")
+);
+
 app.use(cors({ origin: allowedOrigins }));
 app.use(apiLimiter);
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
