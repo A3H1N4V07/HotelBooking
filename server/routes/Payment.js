@@ -2,16 +2,12 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 
-require("dotenv").config();
-
-console.log("Stripe Key Loaded:", !!process.env.STRIPE_SECRET_TEST);
-
-const stripe = require("stripe")(process.env.STRIPE_SECRET_TEST);
-
-const nodemailer = require("nodemailer");
+const stripe = require("../services/stripe");
 const PDFDocument = require("pdfkit");
 const { Booking, Payment, User, sequelize } = require("../models");
-const { CURRENCY, toMinorUnits, formatMoney, formatMoneyPdf } = require("../services/money");
+const { CURRENCY, toMinorUnits, formatMoneyPdf } = require("../services/money");
+const { recordSucceededPayment } = require("../services/paymentRecording");
+const { sendBookingConfirmation } = require("../services/bookingEmail");
 
 // Pay for Booking
 router.post("/", auth, async (req, res) => {
@@ -100,109 +96,18 @@ router.post("/", auth, async (req, res) => {
       });
     }
 
-    await Payment.create(
-      {
-        bookingId: booking.id,
+    // Same code path as the Stripe webhook; whichever records the payment
+    // first sends the email, the other sees "duplicate".
+    const result = await recordSucceededPayment(stripePayment, { transaction });
 
-        stripePaymentId: stripePayment.id,
-
-        amount: booking.amount,
-
-        currency: stripePayment.currency,
-
-        status: "Succeeded",
-
-        paymentMethod: stripePayment.payment_method,
-      },
-      { transaction },
-    );
-
-    await booking.update(
-      {
-        paymentStatus: "Paid",
-
-        bookingStatus: "Confirmed",
-      },
-      { transaction },
-    );
-
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-
-      port: 587,
-
-      secure: false,
-
-      service: "gmail",
-
-      auth: {
-        user: process.env.GMAIL,
-
-        pass: process.env.GMAIL_SECRET_KEY,
-      },
-    });
+    if (result.status !== "recorded" && result.status !== "duplicate") {
+      throw new Error(`Could not record payment ${stripePayment.id}: ${result.status}`);
+    }
 
     await transaction.commit();
 
-    // The payment is committed at this point; a mail failure must not
-    // turn a successful charge into an error response.
-    try {
-      await transporter.sendMail({
-      from: process.env.GMAIL,
-
-      to: booking.User.EmailAddress,
-
-      subject: "Hotel Booking Confirmed",
-
-      html: `
-        <h2>
-            Booking Confirmed
-        </h2>
-
-        <p>
-            Booking ID:
-            ${booking.id}
-        </p>
-
-        <p>
-            Hotel:
-            ${booking.hotelName}
-        </p>
-
-        <p>
-            Check In:
-            ${booking.checkInDate}
-        </p>
-
-        <p>
-            Check Out:
-            ${booking.checkOutDate}
-        </p>
-
-        <p>
-            Guests:
-            ${booking.guests}
-        </p>
-
-        <p>
-            Amount:
-            ${formatMoney(booking.amount)}
-        </p>
-
-        <p>
-            Payment Status:
-            Paid
-        </p>
-
-        <br/>
-
-        <h3>
-            Thank you for booking with EchoStay.
-        </h3>
-    `,
-      });
-    } catch (mailError) {
-      console.error("Booking confirmation email failed:", mailError);
+    if (result.status === "recorded") {
+      await sendBookingConfirmation(result.booking);
     }
 
     return res.json({
@@ -210,7 +115,7 @@ router.post("/", auth, async (req, res) => {
 
       paymentId: stripePayment.id,
 
-      booking,
+      booking: result.booking,
     });
   } catch (error) {
     if (!transaction.finished) {
