@@ -72,13 +72,6 @@ const MIN_PASSWORD_LENGTH = 8;
 const REGISTER_FIELDS = [
     "firstName",
     "lastName",
-    "age",
-    "Origin",
-    "Destination",
-    "travelDate",
-    "checkInDate",
-    "checkOutDate",
-    "NoOfGuests",
     "PhoneNo",
     "EmailAddress",
 ];

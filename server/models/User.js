@@ -15,61 +15,15 @@ module.exports = (sequelize, DataTypes) => {
         notEmpty: true,
       },
     },
-    age: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
-    Origin: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
-    Destination: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
-    travelDate: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
-    checkInDate: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
-    checkOutDate: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
-    NoOfGuests: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
-    },
     PhoneNo: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       validate: {
-        validator: function (v) {
-          return phoneValidationRegex.test(v);
+        // Custom validators must throw; returning false is ignored.
+        isValidPhone(value) {
+          if (value && !phoneValidationRegex.test(value)) {
+            throw new Error("Phone number must be a 10-digit mobile number");
+          }
         },
       },
     },

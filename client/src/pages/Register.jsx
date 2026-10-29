@@ -35,18 +35,6 @@ function Register() {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
 
-                age: "0",
-                Origin: "NA",
-                Destination: "NA",
-
-                travelDate: "NA",
-                checkInDate: "NA",
-                checkOutDate: "NA",
-
-                NoOfGuests: "0",
-
-                PhoneNo: "9876543210",
-
                 EmailAddress: formData.EmailAddress,
 
                 password: formData.password
