@@ -11,6 +11,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_TEST);
 const nodemailer = require("nodemailer");
 const PDFDocument = require("pdfkit");
 const { Booking, Payment, User, sequelize } = require("../models");
+const { CURRENCY, toMinorUnits, formatMoney, formatMoneyPdf } = require("../services/money");
 
 // Pay for Booking
 router.post("/", auth, async (req, res) => {
@@ -66,9 +67,9 @@ router.post("/", auth, async (req, res) => {
     }
 
     const stripePayment = await stripe.paymentIntents.create({
-      amount: Math.round(Number(booking.amount) * 100),
+      amount: toMinorUnits(booking.amount),
 
-      currency: "usd",
+      currency: CURRENCY,
 
       description: booking.hotelName,
 
@@ -185,7 +186,7 @@ router.post("/", auth, async (req, res) => {
 
         <p>
             Amount:
-            $${booking.amount}
+            ${formatMoney(booking.amount)}
         </p>
 
         <p>
@@ -373,7 +374,7 @@ router.get("/invoice/:bookingId", auth, async (req, res) => {
       .fillColor(NAVY)
       .font("Helvetica")
       .fontSize(11)
-      .text(`$${Number(booking.amount).toFixed(2)}`, 0, y + 20, {
+      .text(formatMoneyPdf(booking.amount), 0, y + 20, {
         align: "right",
         width: pageWidth - margin - 20,
       });
@@ -390,7 +391,7 @@ router.get("/invoice/:bookingId", auth, async (req, res) => {
       .fillColor(GOLD)
       .font("Helvetica-Bold")
       .fontSize(16)
-      .text(`$${Number(booking.amount).toFixed(2)}`, 0, y + 54, {
+      .text(formatMoneyPdf(booking.amount), 0, y + 54, {
         align: "right",
         width: pageWidth - margin - 20,
       });
