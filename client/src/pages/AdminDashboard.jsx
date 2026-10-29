@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatPrice } from "../utils/formatPrice";
 import { Link } from "react-router-dom";
 import api from "../api";
 
@@ -29,7 +30,7 @@ function AdminDashboard() {
         { label: "Total Users", value: stats.totalUsers },
         { label: "Total Bookings", value: stats.totalBookings },
         { label: "Total Payments", value: stats.totalPayments },
-        { label: "Total Revenue", value: `$${stats.totalRevenue}` },
+        { label: "Total Revenue", value: formatPrice(stats.totalRevenue) },
     ];
 
     return (
@@ -76,7 +77,7 @@ function AdminDashboard() {
                                             <tr key={booking.id}>
                                                 <td>{booking.id}</td>
                                                 <td>{booking.hotelName}</td>
-                                                <td>${booking.amount}</td>
+                                                <td>{formatPrice(booking.amount)}</td>
                                                 <td>{booking.bookingStatus}</td>
                                             </tr>
                                         ))}
@@ -105,7 +106,7 @@ function AdminDashboard() {
                                         {stats.recentPayments.map((payment) => (
                                             <tr key={payment.id}>
                                                 <td>{payment.id}</td>
-                                                <td>${payment.amount}</td>
+                                                <td>{formatPrice(payment.amount)}</td>
                                                 <td>{payment.status}</td>
                                             </tr>
                                         ))}

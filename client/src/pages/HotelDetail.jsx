@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatPrice } from "../utils/formatPrice";
 import { useParams } from "react-router-dom";
 import api from "../api";
 
@@ -53,7 +54,7 @@ function HotelDetail() {
       address={hotel.address}
       phone={hotel.phone}
       category={hotel.category}
-      price={`₹${hotel.price}`}
+      price={formatPrice(hotel.price)}
       num_reviews={Math.floor(hotel.rating * 100)}
       timezone={hotel.city}
       available={true}

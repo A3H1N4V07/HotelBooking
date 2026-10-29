@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 
 function MyBookings() {
@@ -96,7 +97,7 @@ function MyBookings() {
                           <strong>Guests:</strong> {booking.guests}
                         </p>
 
-                        <p className="fw-bold mb-2 text-gold">${booking.amount}</p>
+                        <p className="fw-bold mb-2 text-gold">{formatPrice(booking.amount)}</p>
 
                         <div className="d-flex gap-2 mb-2">
                           <span className={`badge ${statusBadgeClass(booking.bookingStatus)}`}>

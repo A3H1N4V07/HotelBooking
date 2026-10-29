@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatPrice } from "../utils/formatPrice";
 import { useNavigate } from "react-router-dom";
 
 function StarRating({ rating }) {
@@ -69,7 +70,7 @@ function TopHotelsSection({ hotels }) {
                 </div>
 
                 <div className="mt-auto d-flex justify-content-between align-items-center">
-                  <h5 className="fw-bold mb-0">₹{hotel.price}</h5>
+                  <h5 className="fw-bold mb-0">{formatPrice(hotel.price)}</h5>
 
                   <button
                     className="btn btn-dark btn-sm"

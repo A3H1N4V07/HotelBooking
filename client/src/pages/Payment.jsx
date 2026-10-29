@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { formatPrice } from "../utils/formatPrice";
 import { useParams } from 'react-router-dom';
 import api from '../api';
 import StripeContainer from '../components/StripeContainer';
@@ -46,7 +47,7 @@ function Payment() {
                         <>
                             <p className="mb-1"><strong>Booking #:</strong> {booking.id}</p>
                             <p className="mb-1"><strong>Hotel:</strong> {booking.hotelName}</p>
-                            <p className="mb-3"><strong>Amount:</strong> ${booking.amount}</p>
+                            <p className="mb-3"><strong>Amount:</strong> {formatPrice(booking.amount)}</p>
 
                             <button
                                 className="btn btn-gold w-100"

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 
 const CATEGORIES = ["Budget", "Business", "Family", "Luxury"];
@@ -210,7 +211,7 @@ function AdminHotels() {
                     <td>{hotel.name}</td>
                     <td>{hotel.city}</td>
                     <td>{hotel.category}</td>
-                    <td>₹{hotel.price}</td>
+                    <td>{formatPrice(hotel.price)}</td>
                     <td>{hotel.rating}</td>
                     <td>
                       <div className="d-flex gap-2">

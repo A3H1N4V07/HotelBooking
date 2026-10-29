@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 import { useNavigate } from "react-router-dom";
 import useVoicePageContext from "../hooks/useVoicePageContext";
@@ -292,7 +293,7 @@ function Hotels() {
                 name={hotel.name}
                 img={hotel.image}
                 reviews={Math.floor(hotel.rating * 100)}
-                price={`₹${hotel.price}`}
+                price={formatPrice(hotel.price)}
                 rating={hotel.rating}
               />
             ))
