@@ -1,4 +1,4 @@
-const { generateJson } = require("./geminiClient");
+const { generateJson } = require("./aiClient");
 const { AMENITIES, AMENITY_CODES } = require("../config/amenities");
 
 // What the user wants to DO. Trip details and filters are separate fields,

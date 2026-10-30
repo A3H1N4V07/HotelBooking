@@ -1,4 +1,4 @@
-const { generateJson } = require("./geminiClient");
+const { generateJson } = require("./aiClient");
 const { AMENITIES, AMENITY_CODES } = require("../config/amenities");
 
 const LANDMARK_TYPES = ["beach", "centre", "airport", "station", "attraction"];

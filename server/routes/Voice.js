@@ -16,9 +16,9 @@ router.post("/interpret", aiLimiter, async (req, res) => {
     res.json({ success: true, ...result });
   } catch (error) {
     if (error.aiLimited) {
-      // Not a bug: the AI quota is used up. The client falls back to its
-      // built-in phrases and stops calling for a while.
-      console.warn("Voice AI quota exhausted (Gemini 429)");
+      // Not a bug: no AI provider could answer (quota used up, down or slow).
+      // The client falls back to its built-in phrases for a while.
+      console.warn("Voice AI unavailable: every AI provider is rate-limited, down or slow");
       return res.status(503).json({ success: false, code: "AI_LIMIT", message: "Voice AI is unavailable right now" });
     }
 

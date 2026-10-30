@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const isAdmin = require("../middleware/isAdmin");
-const { extractHotelFilters } = require("../services/gemini");
+const { extractHotelFilters } = require("../services/aiSearch");
 const upload = require("../middleware/upload");
 const { aiLimiter } = require("../middleware/rateLimit");
 const {
@@ -263,7 +263,7 @@ router.post("/recommend", aiLimiter, async (req, res) => {
     res.json({ success: true, filters, hotels });
   } catch (error) {
     if (error.aiLimited) {
-      console.warn("AI search quota exhausted (Gemini 429)");
+      console.warn("AI search unavailable: every AI provider is rate-limited, down or slow");
       return res.status(503).json({
         success: false,
         code: "AI_LIMIT",
