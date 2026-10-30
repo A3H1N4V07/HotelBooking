@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 import AdminHotelRooms from "../components/AdminHotelRooms";
+import { useVoice } from "../context/VoiceContext";
 
 const CATEGORIES = ["Budget", "Business", "Family", "Luxury"];
 
@@ -19,6 +20,7 @@ const EMPTY_FORM = {
 };
 
 function AdminHotels() {
+  const { notify } = useVoice();
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,7 +89,7 @@ function AdminHotels() {
       fetchHotels();
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to delete hotel");
+      notify(error.response?.data?.message || "Failed to delete hotel", "error");
     }
   };
 
@@ -117,7 +119,7 @@ function AdminHotels() {
       fetchHotels();
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to save hotel");
+      notify(error.response?.data?.message || "Failed to save hotel", "error");
     } finally {
       setSubmitting(false);
     }

@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from "../api";
+import useVoicePageContext from "../hooks/useVoicePageContext";
+import { useVoice } from "../context/VoiceContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 
 function Login() {
@@ -11,6 +13,13 @@ function Login() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Voice: passwords are typed, never spoken; the assistant just explains.
+    const { promptIfActive } = useVoice();
+    useVoicePageContext({ describe: () => ({ page: "login" }) });
+    useEffect(() => {
+        promptIfActive();
+    }, [promptIfActive]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -27,7 +36,8 @@ function Login() {
             localStorage.setItem("token", response.data.token);
             localStorage.setItem("user", JSON.stringify(response.data.user));
 
-            navigate("/");
+            // Back to the hotel (or page) that sent us here, if any.
+            navigate(location.state?.from || "/");
 
         } catch (error) {
             console.error(error);

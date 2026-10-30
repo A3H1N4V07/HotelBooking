@@ -5,6 +5,8 @@ import { useParams } from 'react-router-dom';
 import api from '../api';
 import StripeContainer from '../components/StripeContainer';
 import HoldNotice from '../components/HoldNotice';
+import useVoicePageContext from '../hooks/useVoicePageContext';
+import { useVoice } from '../context/VoiceContext';
 
 function Payment() {
 
@@ -12,6 +14,14 @@ function Payment() {
 
     const [showItem, setShowItem] = useState(false);
     const [booking, setBooking] = useState(null);
+    const { promptIfActive } = useVoice();
+
+    // Voice: explains that the card is entered by hand (never spoken).
+    useVoicePageContext({ describe: () => ({ page: "payment", paid: booking?.paymentStatus === "Paid" }) });
+
+    useEffect(() => {
+        if (booking) promptIfActive();
+    }, [booking, promptIfActive]);
 
     useEffect(() => {
 
@@ -49,7 +59,11 @@ function Payment() {
 
                 {
                     showItem ? (
-                        <StripeContainer bookingId={bookingId} />
+                        <StripeContainer
+                            bookingId={bookingId}
+                            // Paid: stop the hold countdown and tell the voice assistant.
+                            onPaid={(paid) => setBooking((current) => ({ ...current, ...paid, paymentStatus: "Paid" }))}
+                        />
                     ) : (
                         <>
                             <p className="mb-1"><strong>Booking #:</strong> {booking.id}</p>

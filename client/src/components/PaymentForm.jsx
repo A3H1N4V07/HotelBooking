@@ -18,7 +18,7 @@ const CARD_OPTIONS = {
   },
 };
 
-function PaymentForm({ bookingId }) {
+function PaymentForm({ bookingId, onPaid }) {
   const [success, setSuccesss] = useState(false);
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -48,6 +48,7 @@ function PaymentForm({ bookingId }) {
 
       if (response.data.success) {
         setSuccesss(true);
+        onPaid?.(response.data.booking);
       }
     } catch (err) {
       console.error(err);

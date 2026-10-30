@@ -1,11 +1,14 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../api";
 import BookingFormModal from "./BookingFormModal";
 import RoomPicker from "./RoomPicker";
 import useVoicePageContext from "../hooks/useVoicePageContext";
+import { useVoice } from "../context/VoiceContext";
+import { getSession } from "../auth";
 import { formatPrice } from "../utils/formatPrice";
 import { nightsBetween, formatDistance } from "../utils/stay";
+import { matchByName } from "../voice/matchName";
 
 const LANDMARK_ICONS = { beach: "🏖️", centre: "🏙️", airport: "✈️", station: "🚉", attraction: "📍" };
 
@@ -16,37 +19,57 @@ const isBookable = (room, guests) =>
 
 function HotelDetailsCard({ hotel }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Dates, guests, the chosen room and the guest's name/phone are part of
+  // the shared booking draft, so voice and the form stay in step.
+  const { draft, updateDraft, clearTrip, notify, promptIfActive } = useVoice();
 
   const [booking, setBooking] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState("");
-
-  const travelData = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("travelData")) || {};
-    } catch {
-      return {};
-    }
-  }, []);
 
   const user = useMemo(
     () => JSON.parse(localStorage.getItem("user") || "null"),
     []
   );
 
-  const [checkInDate, setCheckInDate] = useState(travelData.checkInDate || "");
-  const [checkOutDate, setCheckOutDate] = useState(travelData.checkOutDate || "");
-  const [guests, setGuests] = useState(travelData.NoOfGuests || 1);
-  const [guestName, setGuestName] = useState(user?.firstName || "");
-  const [guestPhone, setGuestPhone] = useState("");
+  const checkInDate = draft.checkIn;
+  const checkOutDate = draft.checkOut;
+  const guests = draft.guests || 1;
+  const guestName = draft.guestName;
+  const guestPhone = draft.guestPhone;
+
+  const setCheckInDate = (checkIn) => updateDraft({ checkIn });
+  const setCheckOutDate = (checkOut) => updateDraft({ checkOut });
+  const setGuests = (value) => updateDraft({ guests: String(value) });
+  const setGuestName = (value) => updateDraft({ guestName: value });
+  const setGuestPhone = (value) => updateDraft({ guestPhone: value });
+
+  // This hotel becomes the draft's hotel; prefill the guest name once.
+  useEffect(() => {
+    updateDraft({
+      hotelId: hotel.id,
+      hotelName: hotel.name,
+      ...(!draft.city && { city: hotel.city }),
+      ...(!draft.guestName && user?.firstName && { guestName: user.firstName }),
+    });
+    // Only when the hotel changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotel.id]);
 
   const [rooms, setRooms] = useState(hotel.roomTypes || []);
   const [roomsLoading, setRoomsLoading] = useState(false);
-  const [selectedRoomId, setSelectedRoomId] = useState(null);
   const requestRef = useRef(0);
 
   const nights = nightsBetween(checkInDate, checkOutDate);
+  const selectedRoomId = draft.hotelId === hotel.id ? draft.roomTypeId : null;
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) || null;
+
+  const selectRoom = useCallback((roomId) => {
+    const room = rooms.find((r) => r.id === roomId);
+    updateDraft({ roomTypeId: room ? room.id : null, roomName: room ? room.name : "" });
+  }, [rooms, updateDraft]);
 
   // Room availability for the chosen dates and party size.
   const loadRooms = useCallback(async () => {
@@ -81,18 +104,24 @@ function HotelDetailsCard({ hotel }) {
   // Keep a valid room selected: the current one if still bookable, else the
   // cheapest that is (rooms arrive sorted by price).
   useEffect(() => {
-    setSelectedRoomId((current) => {
-      const stillOk = rooms.find((room) => room.id === current && isBookable(room, guests));
-      if (stillOk) return current;
-      return rooms.find((room) => isBookable(room, guests))?.id ?? null;
-    });
-  }, [rooms, guests]);
+    if (roomsLoading || draft.hotelId !== hotel.id) return;
+
+    const current = rooms.find((room) => room.id === selectedRoomId && isBookable(room, guests));
+    if (current) return;
+
+    selectRoom(rooms.find((room) => isBookable(room, guests))?.id ?? null);
+  }, [rooms, guests, roomsLoading, selectedRoomId, selectRoom, draft.hotelId, hotel.id]);
+
+  // When rooms settle (or the form opens), let the voice assistant describe
+  // the next step, if a voice conversation is on.
+  useEffect(() => {
+    if (!roomsLoading && draft.hotelId === hotel.id) promptIfActive();
+  }, [roomsLoading, selectedRoomId, showForm, draft.hotelId, hotel.id, promptIfActive]);
 
   const openBookingForm = () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login first");
+    if (!getSession()) {
+      notify("Please log in to book. I'll bring you back to this hotel afterwards.");
+      navigate("/login", { state: { from: location.pathname } });
       return;
     }
 
@@ -141,12 +170,16 @@ function HotelDetailsCard({ hotel }) {
 
       const bookingId = response.data.booking.id;
       navigate(`/payment/${bookingId}`);
+      // The booking now lives on the server; the next search starts fresh
+      // (name and phone are kept). Same render as the navigation, so this
+      // page unmounts without writing its room back into the draft.
+      clearTrip();
     } catch (error) {
       console.error(error);
-      setFormError(
-        error.response?.data?.message || "Booking creation failed. Please try again."
-      );
+      const message = error.response?.data?.message || "Booking creation failed. Please try again.";
+      setFormError(message);
       setShowForm(true);
+      notify(message, "error");
 
       // Someone else took the room meanwhile: show fresh availability.
       if (error.response?.status === 409) loadRooms();
@@ -161,11 +194,32 @@ function HotelDetailsCard({ hotel }) {
   };
 
   useVoicePageContext({
-    setCheckInDate,
-    setCheckOutDate,
-    setGuests,
-    setGuestName,
-    setGuestPhone,
+    describe: () => ({
+      page: "hotel",
+      hotelName: hotel.name,
+      rooms,
+      selectedRoom,
+      roomsLoading,
+      formOpen: showForm,
+    }),
+    // "the family suite" -> that room, if it fits and is free. Returns success.
+    selectRoomByName: (name) => {
+      const room = matchByName(rooms, name);
+
+      if (!room) return false;
+
+      if (!isBookable(room, guests)) {
+        notify(
+          room.capacity < (Number(guests) || 1)
+            ? `The ${room.name} sleeps ${room.capacity}, not ${guests}.`
+            : `The ${room.name} is sold out for those dates.`
+        );
+        return true;
+      }
+
+      selectRoom(room.id);
+      return true;
+    },
     openBookingForm,
     submitBooking,
   });
@@ -267,7 +321,7 @@ function HotelDetailsCard({ hotel }) {
             nights={nights}
             guests={guests}
             selectedId={selectedRoomId}
-            onSelect={setSelectedRoomId}
+            onSelect={selectRoom}
             loading={roomsLoading}
           />
         ) : (

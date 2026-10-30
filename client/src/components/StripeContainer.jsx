@@ -6,10 +6,11 @@ import PaymentForm from './PaymentForm';
 const stripeTestPromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 
-function StripeContainer({ bookingId }) {
+// onPaid(booking) runs after the server confirms the payment.
+function StripeContainer({ bookingId, onPaid }) {
     return (
         <Elements stripe={stripeTestPromise}>
-            <PaymentForm bookingId={bookingId} />
+            <PaymentForm bookingId={bookingId} onPaid={onPaid} />
         </Elements>
     )
 }

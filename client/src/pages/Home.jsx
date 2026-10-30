@@ -12,25 +12,29 @@ import Footer from "../components/Footer";
 import useReveal from "../hooks/useReveal";
 import useVoicePageContext from "../hooks/useVoicePageContext";
 import { useVoice } from "../context/VoiceContext";
+import { matchByName } from "../voice/matchName";
 
 function Home() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [destination, setDestination] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
-  const [checkOutDate, setCheckOutDate] = useState("");
-  const [guests, setGuests] = useState("");
-
   const [allHotels, setAllHotels] = useState([]);
   const [heroImage, setHeroImage] = useState("");
 
+  // The search form edits the shared booking draft, so what's typed here
+  // and what's said to the voice assistant are the same thing.
   const {
     listening,
     transcript,
     toggleListening,
     browserSupportsSpeechRecognition,
+    draft,
+    updateDraft,
+    clearTrip,
+    notify,
   } = useVoice();
+
+  const hasTrip = Boolean(draft.city || draft.checkIn || draft.checkOut || draft.guests || draft.hotelId);
 
   useEffect(() => {
     const loadHotels = async () => {
@@ -61,40 +65,27 @@ function Home() {
   }, [location]);
 
   const goToHotels = (destinationOverride) => {
-    const finalDestination = (destinationOverride || destination || "").trim();
+    const finalDestination = (destinationOverride || draft.city || "").trim();
 
     if (!finalDestination) {
-      alert("Please tell me a destination first — try 'My destination is Goa'.");
+      notify("Tell me where you'd like to stay first, for example \"I want to go to Goa\".");
       return;
     }
 
-    localStorage.setItem(
-      "travelData",
-      JSON.stringify({
-        Destination: finalDestination,
-        checkInDate,
-        checkOutDate,
-        NoOfGuests: guests || "1",
-      })
-    );
-
+    updateDraft({ city: finalDestination });
     navigate("/hotels");
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    goToHotels(destination);
+    goToHotels();
   };
 
   useVoicePageContext({
-    setDestination,
-    setCheckInDate,
-    setCheckOutDate,
-    setGuests,
-    goToHotels,
+    describe: () => ({ page: "home", results: allHotels }),
     bookByName: (target) => {
       if (allHotels.length === 0) {
-        alert("No hotels loaded yet.");
+        notify("Hotels are still loading, try again in a moment.");
         return;
       }
 
@@ -103,14 +94,12 @@ function Home() {
         return;
       }
 
-      const match = allHotels.find((h) =>
-        h.name.toLowerCase().includes(target)
-      );
+      const match = matchByName(allHotels, target);
 
       if (match) {
         navigate(`/hotels/${match.id}`);
       } else {
-        alert(`Couldn't find a hotel matching "${target}". Try "Book first hotel".`);
+        notify(`I couldn't find a hotel called "${target}". Try "book the first one".`);
       }
     },
   });
@@ -128,15 +117,16 @@ function Home() {
       />
 
       <SearchCard
-        destination={destination}
-        setDestination={setDestination}
-        checkInDate={checkInDate}
-        setCheckInDate={setCheckInDate}
-        checkOutDate={checkOutDate}
-        setCheckOutDate={setCheckOutDate}
-        guests={guests}
-        setGuests={setGuests}
+        destination={draft.city}
+        setDestination={(city) => updateDraft({ city })}
+        checkInDate={draft.checkIn}
+        setCheckInDate={(checkIn) => updateDraft({ checkIn })}
+        checkOutDate={draft.checkOut}
+        setCheckOutDate={(checkOut) => updateDraft({ checkOut })}
+        guests={draft.guests}
+        setGuests={(guests) => updateDraft({ guests })}
         onSubmit={handleSubmit}
+        onClear={hasTrip ? clearTrip : undefined}
         onMicClick={toggleListening}
         listening={listening}
         browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}

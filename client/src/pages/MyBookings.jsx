@@ -3,8 +3,10 @@ import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 import { Link } from "react-router-dom";
 import HoldNotice from "../components/HoldNotice";
+import { useVoice } from "../context/VoiceContext";
 
 function MyBookings() {
+  const { notify } = useVoice();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +42,7 @@ function MyBookings() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error(error);
-      alert("Failed to download invoice");
+      notify("Sorry, the invoice download failed.", "error");
     }
   };
 

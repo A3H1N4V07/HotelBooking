@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +9,8 @@ import Loader from "../components/Loader";
 import HotelCard from "../components/HotelCard";
 import ErrorComponent from "../components/ErrorComponent";
 import useAmenities from "../hooks/useAmenities";
-import { formatDistance } from "../utils/stay";
+import { formatDistance, nightsBetween } from "../utils/stay";
+import { matchByName } from "../voice/matchName";
 
 const CATEGORIES = ["Budget", "Business", "Family", "Luxury"];
 
@@ -42,67 +43,79 @@ function describeAiFilters(filters, labels) {
 function Hotels() {
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-
-  const [firstName, setFirstName] = useState("");
-  const [location, setLocation] = useState("");
-  const [cityInput, setCityInput] = useState("");
-
-  const [category, setCategory] = useState("");
-  const [sortBy, setSortBy] = useState("");
-  const [order, setOrder] = useState("asc");
-
-  const [hotelsBigData, setHotelsBigData] = useState([]);
-  const [searchError, setSearchError] = useState("");
-
-  const [amenityFilter, setAmenityFilter] = useState([]);
-  const [maxPriceInput, setMaxPriceInput] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [guestsFilter, setGuestsFilter] = useState("");
-  const [near, setNear] = useState("");
-  const { amenities: amenityOptions, labels: amenityLabels } = useAmenities();
-
-  const [aiQuery, setAiQuery] = useState("");
-  const [aiResults, setAiResults] = useState(null);
-  const [aiFilters, setAiFilters] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
-
+  // City, filters and dates live in the shared booking draft: the voice
+  // assistant, the home page search and these controls all edit the same values.
   const {
     listening,
     transcript,
     toggleListening,
     browserSupportsSpeechRecognition,
+    draft,
+    updateDraft,
+    notify,
+    promptIfActive,
   } = useVoice();
 
-  useEffect(() => {
-    const loadUserData = () => {
-      try {
-        const travelData = JSON.parse(localStorage.getItem("travelData"));
-        const user = JSON.parse(localStorage.getItem("user"));
+  const location = draft.city;
+  const category = draft.category;
+  const amenityFilter = draft.amenities;
+  const maxPrice = draft.maxPrice;
+  const guestsFilter = draft.guests;
+  const near = draft.near;
 
-        if (!travelData || !user) {
-          setLoading(false);
-          return;
-        }
+  const setCategory = (value) => updateDraft({ category: value });
+  const setGuestsFilter = (value) => updateDraft({ guests: value });
 
-        setFirstName(user.firstName);
-        setLocation(travelData.Destination);
-        setCityInput(travelData.Destination);
-      } catch (error) {
-        console.error(error);
-        setLoading(false);
-      }
-    };
+  // Only search availability for real future stays.
+  const today = new Date().toISOString().slice(0, 10);
+  const datesForSearch =
+    nightsBetween(draft.checkIn, draft.checkOut) > 0 && draft.checkIn >= today
+      ? { checkIn: draft.checkIn, checkOut: draft.checkOut }
+      : null;
 
-    loadUserData();
+  const [loading, setLoading] = useState(Boolean(location));
+  const [cityInput, setCityInput] = useState(location);
+  const [sortBy, setSortBy] = useState(near ? "distance" : "");
+  const [order, setOrder] = useState("asc");
+
+  const [hotelsBigData, setHotelsBigData] = useState([]);
+  const [searchError, setSearchError] = useState("");
+
+  const [maxPriceInput, setMaxPriceInput] = useState(maxPrice);
+  const { amenities: amenityOptions, labels: amenityLabels } = useAmenities();
+
+  const [aiQuery, setAiQuery] = useState("");
+  const [aiFilters, setAiFilters] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const firstName = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"))?.firstName || "";
+    } catch {
+      return "";
+    }
   }, []);
+
+  // Voice can change these from outside the inputs.
+  useEffect(() => setCityInput(location), [location]);
+  useEffect(() => setMaxPriceInput(maxPrice), [maxPrice]);
+  useEffect(() => {
+    if (near && !sortBy) setSortBy("distance");
+    if (!near && sortBy === "distance") setSortBy("");
+  }, [near, sortBy]);
+
+  const searchKey = JSON.stringify({ location, category, amenityFilter, maxPrice, guestsFilter, near, sortBy, order, datesForSearch });
 
   useEffect(() => {
     const fetchHotels = async () => {
-      try {
-        if (!location) return;
+      if (!location) {
+        setHotelsBigData([]);
+        setLoading(false);
+        return;
+      }
 
+      try {
         setLoading(true);
 
         const params = new URLSearchParams();
@@ -113,6 +126,10 @@ function Hotels() {
         if (maxPrice) params.set("maxPrice", maxPrice);
         if (guestsFilter) params.set("guests", guestsFilter);
         if (near) params.set("near", near);
+        if (datesForSearch) {
+          params.set("checkIn", datesForSearch.checkIn);
+          params.set("checkOut", datesForSearch.checkOut);
+        }
 
         if (sortBy && (sortBy !== "distance" || near)) {
           params.set("sortBy", sortBy);
@@ -131,31 +148,48 @@ function Hotels() {
     };
 
     fetchHotels();
-  }, [location, category, sortBy, order, amenityFilter, maxPrice, guestsFilter, near]);
+    // searchKey captures every input of the search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKey]);
+
+  // Once results arrive, the voice assistant describes them (if it's on).
+  useEffect(() => {
+    if (!loading && location) promptIfActive();
+  }, [loading, hotelsBigData, location, promptIfActive]);
 
   const toggleAmenity = (code) => {
-    setAmenityFilter((current) =>
-      current.includes(code) ? current.filter((c) => c !== code) : [...current, code]
-    );
+    updateDraft({
+      amenities: amenityFilter.includes(code)
+        ? amenityFilter.filter((c) => c !== code)
+        : [...amenityFilter, code],
+    });
   };
 
   const commitMaxPrice = () => {
     const value = Number(maxPriceInput);
-    setMaxPrice(maxPriceInput && value > 0 ? String(value) : "");
+    updateDraft({ maxPrice: maxPriceInput && value > 0 ? String(value) : "" });
   };
 
   const handleNearChange = (value) => {
-    setNear(value);
-    // Closest first is the useful default once a place is chosen.
-    if (value && !sortBy) setSortBy("distance");
-    if (!value && sortBy === "distance") setSortBy("");
+    updateDraft({ near: value });
+  };
+
+  const filtersActive = Boolean(category || amenityFilter.length || maxPrice || guestsFilter || near);
+
+  const clearFilters = () => {
+    updateDraft({ category: "", amenities: [], maxPrice: "", guests: "", near: "" });
+    setAiFilters(null);
+    setAiQuery("");
+    setAiError("");
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    setLocation(cityInput.trim());
+    updateDraft({ city: cityInput.trim() });
   };
 
+  // "Ask AI" turns a sentence into filters; they're applied to the same
+  // draft, so the controls below show (and can adjust) what it understood.
   const handleAiRecommend = async (e) => {
     e.preventDefault();
     if (!aiQuery.trim()) return;
@@ -165,9 +199,18 @@ function Hotels() {
       setAiError("");
 
       const response = await api.post("/hotels/recommend", { query: aiQuery });
+      const f = response.data.filters;
 
-      setAiResults(response.data.hotels);
-      setAiFilters(response.data.filters);
+      updateDraft({
+        ...(f.city && { city: f.city }),
+        category: f.category || "",
+        amenities: f.amenities || [],
+        maxPrice: f.maxPrice ? String(f.maxPrice) : "",
+        guests: f.guests ? String(f.guests) : draft.guests,
+        near: f.near || "",
+      });
+      if (f.sortBy) setSortBy(f.sortBy);
+      setAiFilters(f);
     } catch (error) {
       console.error(error);
       setAiError(error.response?.data?.message || "Recommendation failed");
@@ -176,25 +219,13 @@ function Hotels() {
     }
   };
 
-  const clearAiResults = () => {
-    setAiResults(null);
-    setAiFilters(null);
-    setAiQuery("");
-    setAiError("");
-  };
-
-  const displayedHotels = aiResults ?? hotelsBigData;
+  const displayedHotels = hotelsBigData;
 
   useVoicePageContext({
-    setCity: (city) => {
-      setCityInput(city);
-      setLocation(city);
-    },
-    setCategory,
-    categories: CATEGORIES,
+    describe: () => ({ page: "hotels", loading, results: displayedHotels }),
     bookByName: (target) => {
       if (displayedHotels.length === 0) {
-        alert("No hotels to book yet — try searching first.");
+        notify("There are no hotels to book yet. Tell me a city first.");
         return;
       }
 
@@ -203,14 +234,12 @@ function Hotels() {
         return;
       }
 
-      const match = displayedHotels.find((h) =>
-        h.name.toLowerCase().includes(target)
-      );
+      const match = matchByName(displayedHotels, target);
 
       if (match) {
         navigate(`/hotels/${match.id}`);
       } else {
-        alert(`Couldn't find a hotel matching "${target}". Try "Book first hotel".`);
+        notify(`I couldn't find "${target}" in these results. Try "book the first one".`);
       }
     },
   });
@@ -254,13 +283,13 @@ function Hotels() {
             <button type="submit" className="btn btn-gold" disabled={aiLoading}>
               {aiLoading ? "Thinking..." : "Ask AI"}
             </button>
-            {aiResults && (
+            {filtersActive && (
               <button
                 type="button"
                 className="btn btn-outline-dark"
-                onClick={clearAiResults}
+                onClick={clearFilters}
               >
-                Clear AI Results
+                Clear filters
               </button>
             )}
           </form>
@@ -389,7 +418,7 @@ function Hotels() {
               </button>
 
               <small className="text-muted text-center" style={{ maxWidth: 360 }}>
-                Try: "Show hotels in Goa", "Show budget hotels", "Book first hotel", "Book [hotel name]"
+                Try: "With a pool", "Under 5000", "Near the beach", "Book the first one", "What's next?"
               </small>
 
               {listening && <small>Heard: {transcript}</small>}
@@ -421,7 +450,11 @@ function Hotels() {
             ))
           ) : (
             <h2 className="text-center mt-5">
-              {aiResults ? "No hotels matched that request" : `No hotels found in ${location}`}
+              {!location
+                ? "Tell me a city to start"
+                : filtersActive
+                  ? `No hotels in ${location} match these filters`
+                  : `No hotels found in ${location}`}
             </h2>
           )}
         </div>

@@ -10,6 +10,7 @@ function SearchCard({
   guests,
   setGuests,
   onSubmit,
+  onClear, // shown only when there's something to clear
   onMicClick,
   listening,
   browserSupportsSpeechRecognition,
@@ -84,6 +85,14 @@ function SearchCard({
             </button>
           </div>
         </form>
+
+        {onClear && (
+          <div className="text-end mt-2">
+            <button type="button" className="btn btn-link btn-sm text-muted p-0" onClick={onClear}>
+              ✕ New search (clear trip)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
