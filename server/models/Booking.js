@@ -25,14 +25,28 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         },
 
+        // "YYYY-MM-DD". NULL only on legacy rows from before date
+        // validation; new bookings always get validated dates.
         checkInDate: {
-            type: DataTypes.STRING,
-            allowNull: false
+            type: DataTypes.DATEONLY,
+            allowNull: true
         },
 
         checkOutDate: {
-            type: DataTypes.STRING,
-            allowNull: false
+            type: DataTypes.DATEONLY,
+            allowNull: true
+        },
+
+        // NULL on bookings made before room types existed.
+        roomTypeId: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
+
+        // Unpaid bookings hold their room only until this time.
+        holdExpiresAt: {
+            type: DataTypes.DATE,
+            allowNull: true
         },
 
         guests: {
@@ -81,6 +95,10 @@ module.exports = (sequelize, DataTypes) => {
 
     Booking.hasMany(models.Payment, {
         foreignKey: 'bookingId'
+    });
+
+    Booking.belongsTo(models.RoomType, {
+        foreignKey: 'roomTypeId'
     });
 
 };
