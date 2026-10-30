@@ -1,4 +1,5 @@
 const { Hotel, sequelize } = require("../models");
+const { backfillHotels } = require("./backfillHotelData");
 
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 
@@ -148,6 +149,9 @@ async function seed() {
     await Hotel.bulkCreate(hotels);
 
     console.log(`Seeded ${hotels.length} hotels across ${CITIES.length} cities.`);
+
+    // Location, amenities, room types and descriptions for the new hotels.
+    await backfillHotels();
     process.exit(0);
   } catch (error) {
     console.error("Seeding failed:", error);
