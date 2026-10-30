@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
+import AdminHotelRooms from "../components/AdminHotelRooms";
 
 const CATEGORIES = ["Budget", "Business", "Family", "Luxury"];
 
@@ -143,7 +144,7 @@ function AdminHotels() {
 
             <div className="row g-2">
               <div className="col-6">
-                <input name="price" type="number" className="form-control" placeholder="Price (per night)" value={formData.price} onChange={handleChange} required />
+                <input name="price" type="number" className="form-control" placeholder="From price per night (cheapest room)" title="Sets the price of the cheapest room type" value={formData.price} onChange={handleChange} required />
               </div>
               <div className="col-6">
                 <input name="rating" type="number" step="0.1" min="0" max="5" className="form-control" placeholder="Rating (0-5)" value={formData.rating} onChange={handleChange} />
@@ -181,6 +182,17 @@ function AdminHotels() {
             </div>
           </form>
         </div>
+
+        {editingId && (
+          <AdminHotelRooms
+            hotelId={editingId}
+            onChanged={(price) => {
+              fetchHotels();
+              // Keep the form in step, or saving it would undo the room price change.
+              setFormData((current) => ({ ...current, price: String(price) }));
+            }}
+          />
+        )}
 
         {loading ? (
           <p>Loading hotels...</p>

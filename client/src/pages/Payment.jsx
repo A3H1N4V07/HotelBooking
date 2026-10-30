@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { formatPrice } from "../utils/formatPrice";
+import { nightsBetween } from "../utils/stay";
 import { useParams } from 'react-router-dom';
 import api from '../api';
 import StripeContainer from '../components/StripeContainer';
+import HoldNotice from '../components/HoldNotice';
 
 function Payment() {
 
@@ -32,6 +34,9 @@ function Payment() {
         );
     }
 
+    const nights = nightsBetween(booking.checkInDate, booking.checkOutDate);
+    const isPaid = booking.paymentStatus === "Paid";
+
     return (
         <div
             className="d-flex align-items-center justify-content-center py-5 gradient-navy"
@@ -40,6 +45,8 @@ function Payment() {
             <div className="glass-card shadow-lg p-4" style={{ width: "420px" }}>
                 <h3 className="fw-bold text-center mb-3">Complete Your Booking</h3>
 
+                {!isPaid && <HoldNotice holdExpiresAt={booking.holdExpiresAt} />}
+
                 {
                     showItem ? (
                         <StripeContainer bookingId={bookingId} />
@@ -47,14 +54,26 @@ function Payment() {
                         <>
                             <p className="mb-1"><strong>Booking #:</strong> {booking.id}</p>
                             <p className="mb-1"><strong>Hotel:</strong> {booking.hotelName}</p>
+                            {booking.RoomType && (
+                                <p className="mb-1"><strong>Room:</strong> {booking.RoomType.name} (sleeps {booking.RoomType.capacity})</p>
+                            )}
+                            {nights > 0 && (
+                                <p className="mb-1">
+                                    <strong>Stay:</strong> {booking.checkInDate} → {booking.checkOutDate} ({nights} night{nights > 1 ? "s" : ""}, {booking.guests} guest{booking.guests > 1 ? "s" : ""})
+                                </p>
+                            )}
                             <p className="mb-3"><strong>Amount:</strong> {formatPrice(booking.amount)}</p>
 
-                            <button
-                                className="btn btn-gold w-100"
-                                onClick={() => setShowItem(true)}
-                            >
-                                Pay Now
-                            </button>
+                            {isPaid ? (
+                                <div className="alert alert-success py-2 mb-0">This booking is already paid.</div>
+                            ) : (
+                                <button
+                                    className="btn btn-gold w-100"
+                                    onClick={() => setShowItem(true)}
+                                >
+                                    Pay Now
+                                </button>
+                            )}
                         </>
                     )
                 }

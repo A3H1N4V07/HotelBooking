@@ -2,6 +2,7 @@ import React from "react";
 
 function BookingFormModal({
   hotelName,
+  roomSummary,
   checkInDate,
   setCheckInDate,
   checkOutDate,
@@ -29,7 +30,8 @@ function BookingFormModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h4 className="fw-bold mb-1">Booking Details</h4>
-        <p className="text-muted small mb-3">{hotelName}</p>
+        <p className="text-muted small mb-1">{hotelName}</p>
+        {roomSummary && <p className="small fw-semibold mb-3">{roomSummary}</p>}
 
         {error && <div className="alert alert-danger py-2">{error}</div>}
 

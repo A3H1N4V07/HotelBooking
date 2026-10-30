@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { formatPrice } from "../utils/formatPrice";
 import { useParams } from "react-router-dom";
 import api from "../api";
 
@@ -47,21 +46,7 @@ function HotelDetail() {
     return <ErrorComponent />;
   }
 
-  return (
-    <HotelDetailsCard
-      id={hotel.id}
-      name={hotel.name}
-      address={hotel.address}
-      phone={hotel.phone}
-      category={hotel.category}
-      price={formatPrice(hotel.price)}
-      num_reviews={Math.floor(hotel.rating * 100)}
-      timezone={hotel.city}
-      available={true}
-      about={hotel.description}
-      img={hotel.image}
-    />
-  );
+  return <HotelDetailsCard hotel={hotel} />;
 }
 
 export default HotelDetail;

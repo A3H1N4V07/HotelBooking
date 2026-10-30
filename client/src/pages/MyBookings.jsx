@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
+import { Link } from "react-router-dom";
+import HoldNotice from "../components/HoldNotice";
 
 function MyBookings() {
   const [bookings, setBookings] = useState([]);
@@ -87,11 +89,16 @@ function MyBookings() {
                         <h5 className="card-title">{booking.hotelName}</h5>
                         <p className="text-muted small mb-2">{booking.location}</p>
 
+                        {booking.RoomType && (
+                          <p className="mb-1 small">
+                            <strong>Room:</strong> {booking.RoomType.name}
+                          </p>
+                        )}
                         <p className="mb-1 small">
-                          <strong>Check In:</strong> {booking.checkInDate}
+                          <strong>Check In:</strong> {booking.checkInDate || "—"}
                         </p>
                         <p className="mb-1 small">
-                          <strong>Check Out:</strong> {booking.checkOutDate}
+                          <strong>Check Out:</strong> {booking.checkOutDate || "—"}
                         </p>
                         <p className="mb-2 small">
                           <strong>Guests:</strong> {booking.guests}
@@ -108,13 +115,20 @@ function MyBookings() {
                           </span>
                         </div>
 
-                        {booking.paymentStatus === "Paid" && (
+                        {booking.paymentStatus === "Paid" ? (
                           <button
                             className="btn btn-sm btn-outline-dark"
                             onClick={() => handleDownloadInvoice(booking.id)}
                           >
                             Download Invoice
                           </button>
+                        ) : booking.bookingStatus !== "Cancelled" && (
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <Link to={`/payment/${booking.id}`} className="btn btn-sm btn-gold">
+                              {booking.paymentStatus === "Failed" ? "Retry payment" : "Pay now"}
+                            </Link>
+                            <HoldNotice holdExpiresAt={booking.holdExpiresAt} compact />
+                          </div>
                         )}
                       </div>
                     </div>
