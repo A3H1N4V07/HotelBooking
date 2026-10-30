@@ -1,5 +1,6 @@
 // Client-side view of the login session. The server still checks every
 // request; this only keeps the UI from acting on a stale or expired token.
+import { clearSavedDraft } from "./voice/draft";
 
 function decodeTokenPayload(token) {
   try {
@@ -13,7 +14,8 @@ function decodeTokenPayload(token) {
 export function clearSession() {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
-  localStorage.removeItem("travelData");
+  localStorage.removeItem("travelData"); // left over from older versions
+  clearSavedDraft();
 }
 
 // Returns { token, role } for a usable token, or null (clearing an expired one).

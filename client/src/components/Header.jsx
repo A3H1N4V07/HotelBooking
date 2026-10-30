@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../api";
 import { clearSession, getSession } from "../auth";
+import { useVoice } from "../context/VoiceContext";
 
 function Header() {
 
     const navigate = useNavigate();
     const location = useLocation();
     const dropdownRef = useRef(null);
+    const { resetDraft } = useVoice();
 
     const [token, setToken] = useState(() => getSession()?.token ?? null);
     const [user, setUser] = useState(
@@ -50,6 +52,7 @@ function Header() {
 
     const handleLogout = () => {
         clearSession();
+        resetDraft();
         setToken(null);
         setUser(null);
         setShowProfile(false);
