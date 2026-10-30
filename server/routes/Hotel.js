@@ -11,7 +11,7 @@ const {
   deleteUploadedImage,
 } = require("../services/hotelInput");
 const { parseSearchFilters, searchHotels, hotelDetails, LANDMARK_TYPES } = require("../services/hotelSearch");
-const { AMENITY_CODES } = require("../config/amenities");
+const { AMENITIES, AMENITY_CODES } = require("../config/amenities");
 
 const { Hotel, Booking, RoomType, sequelize } = require("../models");
 
@@ -55,6 +55,15 @@ router.get("/search", async (req, res) => {
     });
   }
 });
+
+// GET /hotels/amenities — the fixed amenity list (codes + labels) for
+// filters and the admin page. Declared before /:id so it isn't read as an id.
+router.get("/amenities", (req, res) => {
+  res.json(AMENITIES);
+});
+
+// Admin editing of rooms and amenities: /hotels/:id/rooms, /hotels/:id/amenities
+router.use("/:id", require("./HotelRooms"));
 
 // GET /hotels/:id[?checkIn=&checkOut=&guests=] — rooms (with availability
 // when dates are given), amenities and nearby landmarks.

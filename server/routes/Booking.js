@@ -7,6 +7,9 @@ const isAdmin = require("../middleware/isAdmin");
 const { validateStay } = require("../services/bookingDates");
 const { roomsLeft, lockRoomType, newHoldExpiry } = require("../services/availability");
 
+// Room name/capacity to show alongside a booking (null for old bookings).
+const ROOM_SUMMARY = [{ model: RoomType, attributes: ["id", "name", "capacity", "pricePerNight"] }];
+
 // Which room types a booking may use. A requested roomTypeId must belong to
 // the hotel and fit the guests; without one, every room that fits is a
 // candidate, cheapest first. Returns { candidates, explicit } or { error }.
@@ -205,7 +208,7 @@ router.get("/", auth, isAdmin, async (req, res) => {
 router.get("/details/:id", auth, async (req, res) => {
     try {
 
-        const booking = await Booking.findByPk(req.params.id);
+        const booking = await Booking.findByPk(req.params.id, { include: ROOM_SUMMARY });
 
         if (!booking) {
             return res.status(404).json({
@@ -293,6 +296,8 @@ router.get(
                     where: {
                         userId: req.user.id
                     },
+
+                    include: ROOM_SUMMARY,
 
                     order: [
                         ["createdAt", "DESC"]

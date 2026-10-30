@@ -207,6 +207,7 @@ async function hotelDetails(hotelId, { checkIn, checkOut, guests } = {}) {
         name: room.name,
         capacity: room.capacity,
         pricePerNight: room.pricePerNight,
+        totalRooms: room.totalRooms,
         ...(left && { roomsLeft: left.get(room.id) }),
         ...(guests && { fitsGuests: room.capacity >= guests }),
       })),
