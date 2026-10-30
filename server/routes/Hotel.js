@@ -10,59 +10,44 @@ const {
   uploadedImageUrl,
   deleteUploadedImage,
 } = require("../services/hotelInput");
-const { resolveCity } = require("../services/cityMatch");
-const { Op } = require("sequelize");
+const { parseSearchFilters, searchHotels, hotelDetails, LANDMARK_TYPES } = require("../services/hotelSearch");
+const { AMENITY_CODES } = require("../config/amenities");
 
-const { Hotel, Booking } = require("../models");
+const { Hotel, Booking, RoomType, sequelize } = require("../models");
 
-// Corrects spellings/alternate names ("Bengaluru", "Bengalore") to a city
-// that actually exists in the Hotels table.
-async function resolveSearchCity(city) {
-  if (!city) return city;
+// Keeps only well-formed values from the model's output (it can still
+// return something odd); anything dropped simply isn't filtered on.
+function cleanAiFilters(f = {}) {
+  const near = LANDMARK_TYPES.includes(f.near) ? f.near : undefined;
+  const sortBy = ["price", "rating"].includes(f.sortBy) || (f.sortBy === "distance" && near) ? f.sortBy : undefined;
 
-  const rows = await Hotel.findAll({
-    attributes: [[Hotel.sequelize.fn("DISTINCT", Hotel.sequelize.col("city")), "city"]],
-    raw: true,
-  });
-
-  return resolveCity(city, rows.map((row) => row.city));
+  return {
+    city: f.city || undefined,
+    category: ["Budget", "Business", "Family", "Luxury"].includes(f.category) ? f.category : undefined,
+    // "Near the beach" with no other preference: closest first.
+    sortBy: sortBy || (near ? "distance" : undefined),
+    maxPrice: Number(f.maxPrice) > 0 ? Number(f.maxPrice) : undefined,
+    guests: Number.isInteger(f.guests) && f.guests >= 1 && f.guests <= 20 ? f.guests : undefined,
+    amenities: Array.isArray(f.amenities) ? f.amenities.filter((c) => AMENITY_CODES.includes(c)) : undefined,
+    near,
+  };
 }
 
-// Search hotels by city
-function buildHotelWhereAndOrder({ city, category, sortBy, order }) {
-  const where = {};
-
-  if (city) {
-    where.city = { [Op.like]: `%${city}%` };
-  }
-
-  if (category) {
-    where.category = category;
-  }
-
-  const orderClause = [];
-
-  if (sortBy === "price" || sortBy === "rating") {
-    orderClause.push([sortBy, order === "desc" ? "DESC" : "ASC"]);
-  }
-
-  return { where, order: orderClause };
-}
-
+// GET /hotels/search
+//   city, category, sortBy=price|rating|distance, order=asc|desc,
+//   amenities=pool,breakfast (all required), maxPrice (per night),
+//   guests, checkIn & checkOut (YYYY-MM-DD, only hotels with a free room),
+//   near=beach|centre|airport|station|attraction, maxDistanceKm
+// Responds with an array of hotels (see searchHotels for the extra fields).
 router.get("/search", async (req, res) => {
   try {
-    const { city, category, sortBy, order } = req.query;
+    const { filters, error } = parseSearchFilters(req.query);
 
-    const { where, order: orderClause } = buildHotelWhereAndOrder({
-      city: await resolveSearchCity(city),
-      category,
-      sortBy,
-      order,
-    });
+    if (error) {
+      return res.status(400).json({ message: error });
+    }
 
-    const hotels = await Hotel.findAll({ where, order: orderClause });
-
-    res.json(hotels);
+    res.json(await searchHotels(filters));
   } catch (error) {
     console.error(error);
     res.status(500).json({
@@ -71,10 +56,24 @@ router.get("/search", async (req, res) => {
   }
 });
 
-// Get single hotel
+// GET /hotels/:id[?checkIn=&checkOut=&guests=] — rooms (with availability
+// when dates are given), amenities and nearby landmarks.
 router.get("/:id", async (req, res) => {
   try {
-    const hotel = await Hotel.findByPk(req.params.id);
+    const { checkIn, checkOut, guests } = req.query;
+    let options = {};
+
+    if (checkIn || checkOut || guests) {
+      const { filters, error } = parseSearchFilters({ checkIn, checkOut, guests });
+
+      if (error) {
+        return res.status(400).json({ message: error });
+      }
+
+      options = filters;
+    }
+
+    const hotel = await hotelDetails(req.params.id, options);
 
     if (!hotel) {
       return res.status(404).json({
@@ -127,7 +126,16 @@ router.post("/", auth, isAdmin, upload.single("image"), async (req, res) => {
       });
     }
 
-    const hotel = await Hotel.create(values);
+    // Every hotel needs at least one room type to be bookable. Until the
+    // admin page can edit rooms, start with a Standard Room at the listed price.
+    const hotel = await sequelize.transaction(async (transaction) => {
+      const created = await Hotel.create(values, { transaction });
+      await RoomType.create(
+        { hotelId: created.id, name: "Standard Room", capacity: 2, pricePerNight: created.price, totalRooms: 10 },
+        { transaction }
+      );
+      return created;
+    });
 
     res.status(201).json({ success: true, hotel });
   } catch (error) {
@@ -159,7 +167,24 @@ router.put("/:id", auth, isAdmin, upload.single("image"), async (req, res) => {
 
     const oldImage = hotel.image;
 
-    await hotel.update(updates);
+    await sequelize.transaction(async (transaction) => {
+      // The listed price is the cheapest room's price: editing it reprices
+      // that room, and the listing keeps matching what bookings charge.
+      if (updates.price !== undefined) {
+        const cheapest = await RoomType.findOne({
+          where: { hotelId: hotel.id },
+          order: [["pricePerNight", "ASC"], ["id", "ASC"]],
+          transaction,
+        });
+
+        if (cheapest) {
+          await cheapest.update({ pricePerNight: updates.price }, { transaction });
+          updates.price = await RoomType.min("pricePerNight", { where: { hotelId: hotel.id }, transaction });
+        }
+      }
+
+      await hotel.update(updates, { transaction });
+    });
 
     if (updates.image && updates.image !== oldImage) {
       await releaseImage(oldImage);
@@ -199,20 +224,16 @@ router.post("/recommend", aiLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: "query is required" });
     }
 
-    const filters = await extractHotelFilters(query);
+    // The model only proposes filters; they go through the same validation
+    // as a typed search, and the database decides what matches.
+    const extracted = await extractHotelFilters(query);
+    const { filters, error } = parseSearchFilters(cleanAiFilters(extracted));
 
-    const { where, order: orderClause } = buildHotelWhereAndOrder({
-      city: await resolveSearchCity(filters.city),
-      category: filters.category,
-      sortBy: filters.sortBy,
-      order: "asc",
-    });
-
-    if (filters.maxPrice) {
-      where.price = { [Op.lte]: Number(filters.maxPrice) };
+    if (error) {
+      return res.status(400).json({ success: false, message: `Couldn't use that request: ${error}` });
     }
 
-    const hotels = await Hotel.findAll({ where, order: orderClause });
+    const hotels = await searchHotels(filters);
 
     res.json({ success: true, filters, hotels });
   } catch (error) {

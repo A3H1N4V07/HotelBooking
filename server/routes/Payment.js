@@ -8,6 +8,7 @@ const { Booking, Payment, User, sequelize } = require("../models");
 const { CURRENCY, toMinorUnits, formatMoneyPdf } = require("../services/money");
 const { recordSucceededPayment } = require("../services/paymentRecording");
 const { sendBookingConfirmation } = require("../services/bookingEmail");
+const { renewHoldIfExpired } = require("../services/availability");
 
 // Pay for Booking
 router.post("/", auth, async (req, res) => {
@@ -59,6 +60,18 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Booking already paid",
+      });
+    }
+
+    // Never charge for a room someone else got after this booking's hold ran out.
+    const hold = await renewHoldIfExpired(booking, transaction);
+
+    if (!hold.ok) {
+      await transaction.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message: hold.message,
       });
     }
 

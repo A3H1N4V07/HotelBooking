@@ -1,10 +1,39 @@
 const express = require("express");
 const router = express.Router();
 
-const { Booking, User, Hotel } = require("../models");
+const { Booking, User, Hotel, RoomType, sequelize } = require("../models");
 const auth = require("../middleware/auth");
 const isAdmin = require("../middleware/isAdmin");
 const { validateStay } = require("../services/bookingDates");
+const { roomsLeft, lockRoomType, newHoldExpiry } = require("../services/availability");
+
+// Which room types a booking may use. A requested roomTypeId must belong to
+// the hotel and fit the guests; without one, every room that fits is a
+// candidate, cheapest first. Returns { candidates, explicit } or { error }.
+function pickRoomCandidates(roomTypes, roomTypeId, guests) {
+    if (roomTypeId !== undefined && roomTypeId !== null && roomTypeId !== "") {
+        const room = roomTypes.find((r) => r.id === Number(roomTypeId));
+
+        if (!room) return { error: "That room type doesn't belong to this hotel" };
+
+        if (room.capacity < guests) {
+            return { error: `${room.name} sleeps up to ${room.capacity} guests` };
+        }
+
+        return { candidates: [room], explicit: true };
+    }
+
+    const candidates = roomTypes
+        .filter((r) => r.capacity >= guests)
+        .sort((a, b) => a.pricePerNight - b.pricePerNight || a.id - b.id);
+
+    if (candidates.length === 0) {
+        const largest = Math.max(...roomTypes.map((r) => r.capacity));
+        return { error: `No room at this hotel sleeps ${guests} guests (largest sleeps ${largest})` };
+    }
+
+    return { candidates, explicit: false };
+}
 
 // =====================
 // Create Booking
@@ -13,7 +42,7 @@ router.post("/create", auth, async (req, res) => {
 
     try {
 
-        const { hotelId, checkInDate, checkOutDate, guests, guestName, guestPhone } = req.body;
+        const { hotelId, roomTypeId, checkInDate, checkOutDate, guests, guestName, guestPhone } = req.body;
 
         if (!checkInDate || !checkOutDate || !guests) {
             return res.status(400).json({
@@ -31,7 +60,7 @@ router.post("/create", auth, async (req, res) => {
             });
         }
 
-        const hotel = await Hotel.findByPk(hotelId);
+        const hotel = await Hotel.findByPk(hotelId, { include: [RoomType] });
 
         if (!hotel) {
             return res.status(404).json({
@@ -40,38 +69,95 @@ router.post("/create", auth, async (req, res) => {
             });
         }
 
-        const booking = await Booking.create({
+        if (hotel.RoomTypes.length === 0) {
+            return res.status(409).json({
+                success: false,
+                message: "This hotel has no rooms set up yet"
+            });
+        }
 
-            hotelId: hotel.id,
+        const picked = pickRoomCandidates(hotel.RoomTypes, roomTypeId, stay.guests);
 
-            hotelName: hotel.name,
+        if (picked.error) {
+            return res.status(400).json({
+                success: false,
+                message: picked.error
+            });
+        }
 
-            hotelImage: hotel.image,
+        // One transaction per booking: lock each candidate room type (always
+        // in the same order, so two requests can't deadlock), count what's
+        // taken, and book the first one with a room left.
+        const booking = await sequelize.transaction(async (transaction) => {
 
-            location: hotel.address || hotel.city,
+            for (const room of picked.candidates) {
 
-            userId: req.user.id,
+                await lockRoomType(room.id, transaction);
 
-            checkInDate,
+                const left = await roomsLeft([room], checkInDate, checkOutDate, { transaction });
 
-            checkOutDate,
+                if (left.get(room.id) < 1) continue;
 
-            guests: stay.guests,
+                return Booking.create({
 
-            guestName,
+                    hotelId: hotel.id,
 
-            guestPhone,
+                    hotelName: hotel.name,
 
-            // Hotel.price is per night; never trust a client-sent amount.
-            amount: Number(hotel.price) * stay.nights
+                    hotelImage: hotel.image,
+
+                    location: hotel.address || hotel.city,
+
+                    userId: req.user.id,
+
+                    roomTypeId: room.id,
+
+                    checkInDate,
+
+                    checkOutDate,
+
+                    guests: stay.guests,
+
+                    guestName,
+
+                    guestPhone,
+
+                    // Priced from the room, per night; never trust a client-sent amount.
+                    amount: room.pricePerNight * stay.nights,
+
+                    holdExpiresAt: newHoldExpiry()
+
+                }, { transaction });
+
+            }
+
+            return null;
 
         });
+
+        if (!booking) {
+            return res.status(409).json({
+                success: false,
+                message: picked.explicit
+                    ? `No ${picked.candidates[0].name} left for those dates`
+                    : "No rooms left at this hotel for those dates"
+            });
+        }
+
+        const room = picked.candidates.find((r) => r.id === booking.roomTypeId);
 
         res.status(201).json({
 
             success: true,
 
-            booking
+            booking,
+
+            roomType: {
+                id: room.id,
+                name: room.name,
+                capacity: room.capacity,
+                pricePerNight: room.pricePerNight
+            }
 
         });
 
