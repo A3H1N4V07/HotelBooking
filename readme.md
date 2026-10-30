@@ -55,7 +55,10 @@ Create `server/.env` with these variables (values not shown — never commit thi
 | `STRIPE_SECRET_TEST` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Signing secret (`whsec_…`) for `POST /payment/webhook` — see below |
 | `GMAIL`, `GMAIL_SECRET_KEY` | Gmail account + app password for emails |
-| `GEMINI_API_KEY` | Voice commands and AI search |
+| `GROQ_API_KEY` | AI for voice commands and "Ask AI" search (main provider; free key at console.groq.com) |
+| `GEMINI_API_KEY` | AI backup provider, used when Groq is rate-limited, down or slow |
+| `AI_PROVIDERS` | Optional. Order to try them in (default `groq,gemini`); providers without a key are skipped |
+| `GROQ_MODEL`, `GEMINI_MODEL` | Optional. Override the default models (`openai/gpt-oss-20b`, `gemini-2.5-flash-lite`) |
 | `PEXELS_API_KEY` | Only for `seed:hotels` |
 | `CLIENT_ORIGIN` | Optional. Allowed browser origins, comma-separated (default `http://localhost:3000`) |
 | `SERVER_PUBLIC_URL` | Optional. Public base URL used for uploaded image links |
