@@ -33,7 +33,10 @@ async function generateJson({ systemInstruction, userText, responseSchema }) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini request failed: ${response.status} ${errText}`);
+    const error = new Error(`Gemini request failed: ${response.status} ${errText}`);
+    // 429 = quota/rate limit (the free tier allows few requests per day).
+    error.aiLimited = response.status === 429;
+    throw error;
   }
 
   const data = await response.json();

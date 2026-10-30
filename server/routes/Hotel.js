@@ -56,6 +56,22 @@ router.get("/search", async (req, res) => {
   }
 });
 
+// GET /hotels/cities — distinct city names, so the voice assistant can
+// recognise "Goa" in a sentence without calling the AI.
+router.get("/cities", async (req, res) => {
+  try {
+    const rows = await Hotel.findAll({
+      attributes: [[sequelize.fn("DISTINCT", sequelize.col("city")), "city"]],
+      order: [["city", "ASC"]],
+      raw: true,
+    });
+    res.json(rows.map((row) => row.city));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch cities" });
+  }
+});
+
 // GET /hotels/amenities — the fixed amenity list (codes + labels) for
 // filters and the admin page. Declared before /:id so it isn't read as an id.
 router.get("/amenities", (req, res) => {
@@ -246,6 +262,15 @@ router.post("/recommend", aiLimiter, async (req, res) => {
 
     res.json({ success: true, filters, hotels });
   } catch (error) {
+    if (error.aiLimited) {
+      console.warn("AI search quota exhausted (Gemini 429)");
+      return res.status(503).json({
+        success: false,
+        code: "AI_LIMIT",
+        message: "AI search is unavailable right now. Please use the filters below.",
+      });
+    }
+
     console.error(error);
     res.status(500).json({ success: false, message: "Something went wrong" });
   }
