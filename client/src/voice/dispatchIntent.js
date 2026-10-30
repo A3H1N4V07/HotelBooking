@@ -1,17 +1,15 @@
-// Maps an intent returned by the server's /voice/interpret (Gemini) onto
-// the shared voice actions.
+// Applies a result from the server's /voice/interpret (Gemini): first every
+// detail the user mentioned (one sentence can carry many), then the intent.
 const INTENT_HANDLERS = {
-  SET_DESTINATION: (a, r) => a.setDestination(r.city),
-  SEARCH_HOTELS: (a, r) => a.searchHotels(r.city),
-  SET_CHECK_IN: (a, r) => a.setCheckIn(r.date),
-  SET_CHECK_OUT: (a, r) => a.setCheckOut(r.date),
-  SET_GUESTS: (a, r) => a.setGuests(r.guests),
-  SHOW_CATEGORY: (a, r) => a.showCategory(r.category),
+  SEARCH_HOTELS: (a) => a.searchHotels(),
   BOOK_HOTEL: (a, r) => a.bookHotel(r.hotelName),
+  CHOOSE_ROOM: (a, r) => a.chooseRoom(r.roomName),
   OPEN_BOOKING_FORM: (a) => a.openBookingForm(),
-  SET_GUEST_NAME: (a, r) => a.setGuestName(r.guestName),
-  SET_GUEST_PHONE: (a, r) => a.setGuestPhone(r.guestPhone),
   CONFIRM_BOOKING: (a) => a.confirmBooking(),
+  YES: (a) => a.yes(),
+  NO: (a) => a.no(),
+  WHAT_NEXT: (a) => a.whatNext(),
+  START_OVER: (a) => a.startOver(),
   OPEN_MY_BOOKINGS: (a) => a.openMyBookings(),
   DOWNLOAD_INVOICE: (a) => a.downloadInvoice(),
   GO_HOME: (a) => a.goHome(),
@@ -20,10 +18,13 @@ const INTENT_HANDLERS = {
 };
 
 export function dispatchIntent(actions, result) {
+  const changed = actions.applyDetails(result);
   const handler = INTENT_HANDLERS[result.intent];
 
   if (handler) {
     handler(actions, result);
+  } else if (changed) {
+    actions.whatNext(); // PROVIDE_DETAILS: ask for whatever is still missing
   } else {
     actions.unknown();
   }

@@ -1,11 +1,12 @@
 import api from "../api";
 
 // Downloads the PDF invoice for the user's most recent paid booking.
-export async function downloadLatestInvoice() {
+// `notify` shows (and, with voice on, speaks) a non-blocking message.
+export async function downloadLatestInvoice(notify) {
   const token = localStorage.getItem("token");
 
   if (!token) {
-    alert("Please login first.");
+    notify("Please log in to download an invoice.");
     return;
   }
 
@@ -16,7 +17,7 @@ export async function downloadLatestInvoice() {
     );
 
     if (paidBookings.length === 0) {
-      alert("No paid bookings found to download an invoice for.");
+      notify("You don't have a paid booking to download an invoice for yet.");
       return;
     }
 
@@ -35,8 +36,10 @@ export async function downloadLatestInvoice() {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+
+    notify(`Downloading the invoice for your ${latest.hotelName} booking.`, "success");
   } catch (error) {
     console.error(error);
-    alert("Failed to download invoice.");
+    notify("Sorry, the invoice download failed.", "error");
   }
 }
