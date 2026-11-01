@@ -63,6 +63,10 @@ async function generateJson({ systemInstruction, userText, responseSchema }) {
   const error = new Error(`All AI providers failed: ${failures.map((f) => f.provider).join(", ")}`);
   // Every provider was rate-limited/down/slow: the AI is unavailable for now.
   error.aiLimited = failures.every((f) => f.unavailable);
+  // When the soonest provider should work again, if any said (e.g. Groq's
+  // per-minute limit clears in seconds). Unknown = null.
+  const waits = failures.map((f) => f.error.retryAfterMs).filter((ms) => ms > 0);
+  error.retryAfterMs = waits.length ? Math.min(...waits) : null;
   throw error;
 }
 

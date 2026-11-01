@@ -51,6 +51,11 @@ module.exports = (sequelize, DataTypes) => {
     longitude: {
       type: DataTypes.DECIMAL(9, 6),
     },
+
+    // "sample" (generated, approximate) or "exact".
+    locationSource: {
+      type: DataTypes.ENUM("sample", "exact"),
+    },
   });
 
   Hotel.associate = (models) => {

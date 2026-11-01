@@ -58,7 +58,9 @@ Create `server/.env` with these variables (values not shown — never commit thi
 | `GROQ_API_KEY` | AI for voice commands and "Ask AI" search (main provider; free key at console.groq.com) |
 | `GEMINI_API_KEY` | AI backup provider, used when Groq is rate-limited, down or slow |
 | `AI_PROVIDERS` | Optional. Order to try them in (default `groq,gemini`); providers without a key are skipped |
-| `GROQ_MODEL`, `GEMINI_MODEL` | Optional. Override the default models (`openai/gpt-oss-20b`, `gemini-2.5-flash-lite`) |
+| `GROQ_MODEL`, `GEMINI_MODEL` | Optional. Override the default models (`openai/gpt-oss-120b`, `gemini-2.5-flash-lite`) |
+| `OSM_CONTACT_EMAIL` | Optional. Contact email sent to OpenStreetMap (Nominatim asks apps to identify themselves); used for "how far is it from…" and "what's nearby" |
+| `NOMINATIM_URL` | Optional. Your own or a paid Nominatim instance instead of the public one (1 request/second limit) |
 | `PEXELS_API_KEY` | Only for `seed:hotels` |
 | `CLIENT_ORIGIN` | Optional. Allowed browser origins, comma-separated (default `http://localhost:3000`) |
 | `SERVER_PUBLIC_URL` | Optional. Public base URL used for uploaded image links |

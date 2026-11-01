@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom'
 
-const HotelCard = ({ id, name, img, reviews, price, rating, distance, amenities = [] }) => {
+// `highlighted`: the voice assistant just answered about this hotel.
+const HotelCard = ({ id, name, img, reviews, price, rating, distance, amenities = [], highlighted = false }) => {
     return (
         <div className="col-md-4 col-sm-6 mb-4">
             <Link to={`/hotels/${id}/`} className="text-decoration-none text-dark">
-                <div className="card border-0 shadow-sm h-100 hover-lift">
+                <div
+                    className={`card shadow-sm h-100 hover-lift ${highlighted ? "border border-3 border-warning" : "border-0"}`}
+                >
                     <img
                         src={img}
                         alt={name}

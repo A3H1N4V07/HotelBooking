@@ -242,6 +242,7 @@ async function backfillHotels({ force = false, log = console.log } = {}) {
       await hotel.update(
         {
           ...point,
+          locationSource: "sample",
           price: Math.min(...roomRows.map((room) => room.pricePerNight)),
           description: describe(hotel, roomRows, amenityCodes, distances),
         },

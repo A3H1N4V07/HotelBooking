@@ -196,7 +196,16 @@ function HotelDetailsCard({ hotel }) {
   useVoicePageContext({
     describe: () => ({
       page: "hotel",
+      hotelId: hotel.id,
       hotelName: hotel.name,
+      // For answering "does it have a pool?" / "how far is the beach?" locally.
+      openHotel: {
+        id: hotel.id,
+        name: hotel.name,
+        amenities: (hotel.amenities || []).map((a) => a.code),
+        nearby: hotel.nearby || [],
+        locationSource: hotel.locationSource,
+      },
       rooms,
       selectedRoom,
       roomsLoading,

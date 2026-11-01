@@ -75,10 +75,18 @@ export function extractDetails(t, ctx) {
   const checkOut = t.match(/\b(?:till|until|check(?:ing)? out(?: on| date is)?|leav(?:e|ing)(?: on)?)\s+(.+?)(?=\s+(?:for|with|under|near|and)\b|$)/);
   const dateWords = t.match(DATE_WORDS) || [];
 
-  const inPhrase = checkIn && parseSpokenDate(weekend(checkIn[1])) ? weekend(checkIn[1]) : dateWords[0] && weekend(dateWords[0]);
-  if (inPhrase && parseSpokenDate(inPhrase)) f.checkIn = inPhrase;
+  const inText = checkIn && parseSpokenDate(weekend(checkIn[1])) ? checkIn[1] : null;
+  const outText = checkOut && parseSpokenDate(checkOut[1]) ? checkOut[1] : null;
+  // Bare dates not already claimed by "from …" / "till …" fill the rest in
+  // order, except that a lone date answers the check-out question when that
+  // was just asked (it must not move the check-in).
+  const bare = dateWords.filter((d) => !inText?.includes(d) && !outText?.includes(d));
+  const answersCheckOut = ctx.expects === "checkOut" && !inText && bare.length === 1;
 
-  const outPhrase = checkOut && parseSpokenDate(checkOut[1]) ? checkOut[1] : dateWords[1];
+  const inPhrase = inText ?? (answersCheckOut ? null : bare.shift());
+  if (inPhrase && parseSpokenDate(weekend(inPhrase))) f.checkIn = weekend(inPhrase);
+
+  const outPhrase = outText ?? bare.shift();
   if (outPhrase && parseSpokenDate(outPhrase)) f.checkOut = outPhrase;
 
   // Nights: "for three nights", "a week"
@@ -126,6 +134,103 @@ function cleanTarget(text) {
     .replace(/^(?:me |for me |a |an |the |this |that )+/, "")
     .replace(/\s+(?:for me|now|hotel|please|right now)$/, "")
     .trim();
+}
+
+// ----- Simple questions answered from the data on screen -----
+
+const QUESTION_START = /^(?:does|do|is|are|was|were|can|could|will|would|has|have|how|what|which|where|why|who|when|tell me|any|compare|whats|what's)\b/;
+
+export function isQuestion(raw, t) {
+  return /\?\s*$/.test(String(raw || "")) || QUESTION_START.test(t);
+}
+
+const LANDMARK_WORDS = {
+  beach: "beach|sea",
+  airport: "airport",
+  station: "(?:railway |train )?station",
+  centre: "city cent(?:er|re)|centre|center|town cent(?:er|re)",
+};
+
+const formatKm = (km) => (km < 1 ? `${Math.max(50, Math.round((km * 1000) / 50) * 50)} m` : `${Number(km).toFixed(1)} km`);
+const rupees = (n) => `${Number(n).toLocaleString("en-IN")} rupees`;
+const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+
+// The hotel a question is about: one named in it, else the hotel being viewed.
+function hotelInQuestion(t, ctx) {
+  const named = (ctx.hotels || []).find((h) => {
+    const name = h.name.toLowerCase().replace(/^the\s+/, "");
+    return t.includes(name);
+  });
+  return named || ctx.openHotel || null;
+}
+
+// { text, hotelIds } or null when it needs the AI.
+export function answerLocally(t, ctx) {
+  const labels = ctx.amenityLabels || {};
+
+  // "does it have a pool?", "is breakfast included at Lakeside Inn?"
+  // ("restaurants nearby" is about places around the hotel, not its amenities.)
+  const aroundHotel = /\b(?:nearby|near ?by|around|close ?by|near (?:here|the hotel|it|there)|walking distance|in the area|outside)\b/.test(t);
+  const amenities = parseAmenities(t);
+  if (amenities.length && !aroundHotel && /\b(?:does|do|is there|are there|has|have|got|includes?|included|offer|with)\b/.test(t)) {
+    const hotel = hotelInQuestion(t, ctx);
+    if (!hotel) return null;
+
+    const yes = amenities.filter((c) => hotel.amenities.includes(c)).map((c) => lowerFirst(labels[c] || c));
+    const no = amenities.filter((c) => !hotel.amenities.includes(c)).map((c) => lowerFirst(labels[c] || c));
+
+    const text = !no.length
+      ? `Yes, ${hotel.name} has ${yes.join(" and ")}.`
+      : !yes.length
+        ? `No, ${hotel.name} doesn't list ${no.join(" or ")}.`
+        : `${hotel.name} has ${yes.join(" and ")}, but doesn't list ${no.join(" or ")}.`;
+
+    return { text, hotelIds: [hotel.id] };
+  }
+
+  // "how far is it from the beach?", "how far is the airport?" (generic
+  // landmarks only; "how far from Fort Aguada" needs a map lookup -> AI).
+  if (ctx.openHotel?.nearby?.length) {
+    for (const [type, words] of Object.entries(LANDMARK_WORDS)) {
+      const pattern = new RegExp(
+        `^(?:how (?:far|close|near) (?:is|are)(?: it| this hotel| the hotel| we)? (?:from|to) (?:the )?(?:${words})|how far is the (?:${words})(?: from here)?|what'?s the distance (?:to|from) the (?:${words}))$`
+      );
+      if (pattern.test(t)) {
+        const place = ctx.openHotel.nearby.filter((p) => p.type === type).sort((a, b) => a.km - b.km)[0];
+        if (!place) return { text: `I don't have a ${type === "centre" ? "city centre" : type} listed near ${ctx.openHotel.name}.` };
+        const approx = ctx.openHotel.locationSource === "sample" ? " (approximate: sample location)" : "";
+        return { text: `${ctx.openHotel.name} is about ${formatKm(place.km)} from ${place.name}${approx}.`, hotelIds: [ctx.openHotel.id] };
+      }
+    }
+  }
+
+  // "which one is the cheapest / best rated / closest?" over the listed hotels.
+  const hotels = ctx.hotels || [];
+  const superlative = t.match(/^which (?:one |hotel )?(?:is|has) (?:the )?(cheapest|least expensive|most expensive|(?:best|highest|top) rat(?:ed|ing)|closest|nearest)\b/);
+  if (superlative && hotels.length) {
+    const kind = superlative[1];
+    const price = (h) => h.fromPrice ?? h.price;
+
+    if (/cheapest|least/.test(kind)) {
+      const h = [...hotels].sort((a, b) => price(a) - price(b))[0];
+      return { text: `The cheapest is ${h.name}, from ${rupees(price(h))} a night.`, hotelIds: [h.id] };
+    }
+    if (/most expensive/.test(kind)) {
+      const h = [...hotels].sort((a, b) => price(b) - price(a))[0];
+      return { text: `The most expensive is ${h.name}, from ${rupees(price(h))} a night.`, hotelIds: [h.id] };
+    }
+    if (/rat/.test(kind)) {
+      const h = [...hotels].sort((a, b) => b.rating - a.rating)[0];
+      return { text: `The best rated is ${h.name}, at ${h.rating} stars.`, hotelIds: [h.id] };
+    }
+    // "closest": only when the list is sorted by a place we know.
+    if (hotels.every((h) => h.nearest)) {
+      const h = [...hotels].sort((a, b) => a.nearest.km - b.nearest.km)[0];
+      return { text: `The closest is ${h.name}, about ${formatKm(h.nearest.km)} from ${h.nearest.name}.`, hotelIds: [h.id] };
+    }
+  }
+
+  return null;
 }
 
 export function understand(text, ctx = {}) {
@@ -227,6 +332,18 @@ export function understand(text, ctx = {}) {
     return [{ type: "search" }];
   }
 
+  // 4b. Questions. Simple ones are answered here from what's on screen;
+  // anything else goes to the AI (never turned into a filter by mistake:
+  // "does it have a pool?" is a question, not "add a pool filter").
+  if (isQuestion(text, t)) {
+    const local = answerLocally(t, ctx);
+    if (local) return [{ type: "answer", ...local }];
+    if (ctx.aiAvailable !== false) return [];
+    // AI offline: a filter-like question can still be applied as a filter;
+    // otherwise say plainly that only simple questions work right now.
+    return hasDetails ? [{ type: "details", fields: sentenceDetails, search: true }] : [{ type: "cantAnswer" }];
+  }
+
   // 5. A short answer to the question just asked.
   const details = sentenceDetails;
 
@@ -235,10 +352,10 @@ export function understand(text, ctx = {}) {
       if (!details.city && t.split(" ").length <= 3 && !/\d/.test(t)) return [{ type: "details", fields: { city: titleCase(t) } }];
       break;
     case "checkIn":
-      if (!details.checkIn && parseSpokenDate(t)) return [{ type: "details", fields: { ...details, checkIn: t } }];
+      if (!details.checkIn && !details.checkOut && parseSpokenDate(t)) return [{ type: "details", fields: { ...details, checkIn: t } }];
       break;
     case "checkOut":
-      if (!details.checkOut && !details.nights && parseSpokenDate(t)) return [{ type: "details", fields: { ...details, checkOut: t } }];
+      if (!details.checkIn && !details.checkOut && !details.nights && parseSpokenDate(t)) return [{ type: "details", fields: { ...details, checkOut: t } }];
       break;
     case "guests":
       if (!details.guests && parseSpokenNumber(t) && t.split(" ").length <= 3) return [{ type: "details", fields: { guests: parseSpokenNumber(t) } }];

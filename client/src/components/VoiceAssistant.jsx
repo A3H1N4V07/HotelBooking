@@ -4,6 +4,7 @@ import { canSpeak } from "../voice/speech";
 import { formatPrice } from "../utils/formatPrice";
 import { useLocation } from "react-router-dom";
 import { examplesFor, pageFromPath } from "../voice/examples";
+import { formatDistance } from "../utils/stay";
 
 
 // One line per known trip detail, so the user can see what's been understood.
@@ -33,6 +34,8 @@ function VoiceAssistant() {
     browserSupportsSpeechRecognition,
     draft,
     lastReply,
+    answerCard,
+    reopenComparison,
     pendingConfirm,
     answerConfirm,
     repliesOn,
@@ -127,6 +130,41 @@ function VoiceAssistant() {
           {lastReply && (
             <div className="small mb-3 p-2 rounded" style={{ background: "rgba(255,255,255,0.08)" }} aria-live="polite">
               💬 {lastReply}
+
+              {/* Details behind the last answer, when it's still the one shown. */}
+              {answerCard?.text === lastReply && (
+                <>
+                  {answerCard.places?.items?.length > 0 && (
+                    <ul className="mb-1 mt-2 ps-3">
+                      {answerCard.places.items.map((p) => (
+                        <li key={p.name}>
+                          {p.name} · {formatDistance(p.km)}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {answerCard.place?.distances?.length > 1 && (
+                    <ul className="mb-1 mt-2 ps-3">
+                      {answerCard.place.distances.map((d) => (
+                        <li key={d.hotelId}>{d.hotelName} · {formatDistance(d.km)}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {answerCard.comparison && (
+                    <button type="button" className="btn btn-sm btn-outline-light mt-2" onClick={() => reopenComparison(answerCard.comparison)}>
+                      Show comparison
+                    </button>
+                  )}
+
+                  {answerCard.attribution && (
+                    <div className="text-white-50 mt-1" style={{ fontSize: "0.75rem" }}>
+                      Map data {answerCard.attribution} · straight-line distances
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

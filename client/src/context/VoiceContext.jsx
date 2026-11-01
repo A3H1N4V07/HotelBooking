@@ -20,14 +20,17 @@ import { speak, stopSpeaking, canSpeak } from "../voice/speech";
 import { nextPrompt } from "../voice/conversation";
 import useAmenities from "../hooks/useAmenities";
 import NoticeToast from "../components/NoticeToast";
+import ComparisonModal from "../components/ComparisonModal";
 import { hintExamples, pageFromPath } from "../voice/examples";
 
 const VoiceContext = createContext(null);
 
 // Unmatched phrases wait this long for the rest of the sentence before the AI is asked.
 const AI_FALLBACK_DEBOUNCE_MS = 900;
-// After the AI quota runs out, don't call it again for this long.
+// After the AI quota runs out, don't call it again for this long, unless the
+// server says it'll be back sooner (then at least MIN_AI_PAUSE_MS).
 const AI_PAUSE_MS = 10 * 60 * 1000;
+const MIN_AI_PAUSE_MS = 5000;
 const NOTICE_MS = 6000;
 const REPLIES_PREF_KEY = "voiceReplies";
 const PROMPT_REPEAT_MS = 6000;
@@ -53,6 +56,11 @@ export function VoiceProvider({ children }) {
   const [speaking, setSpeaking] = useState(false);
   // True while the AI quota is used up (only simple, local phrases work).
   const [aiOffline, setAiOffline] = useState(false);
+  // Last answer to a question (text + any places/distances to list), the
+  // comparison table being shown, and hotels to highlight on the page.
+  const [answerCard, setAnswerCard] = useState(null);
+  const [comparison, setComparison] = useState(null);
+  const [highlightIds, setHighlightIds] = useState([]);
 
   const [draft, setDraft] = useState(loadDraft);
   const draftRef = useRef(draft);
@@ -86,6 +94,7 @@ export function VoiceProvider({ children }) {
   const aiBufferRef = useRef("");
   const aiTimerRef = useRef(null);
   const aiPausedUntilRef = useRef(0);
+  const aiOfflineTimerRef = useRef(null);
   const amenityLabelsRef = useRef(amenityLabels);
   amenityLabelsRef.current = amenityLabels;
 
@@ -286,6 +295,17 @@ export function VoiceProvider({ children }) {
     }
   }, [repliesOn]);
 
+  const closeComparison = useCallback(() => setComparison(null), []);
+  const reopenComparison = useCallback((rows) => setComparison(rows), []);
+
+  // An answer to a question: spoken, shown in the panel, reflected on the page.
+  const showAnswer = useCallback((answer) => {
+    setAnswerCard(answer);
+    setHighlightIds(answer.hotelIds || []);
+    if (answer.comparison) setComparison(answer.comparison);
+    say(answer.text);
+  }, [say]);
+
   // ----- Running what was understood -----
   const runSteps = useCallback((steps) => {
     const a = actionsRef.current;
@@ -308,6 +328,10 @@ export function VoiceProvider({ children }) {
         case "chooseRoom": a.chooseRoom(step.value); break;
         case "setGuestName": a.setGuestName(step.value); break;
         case "setGuestPhone": a.setGuestPhone(step.value); break;
+        case "answer": showAnswer({ text: step.text, hotelIds: step.hotelIds }); break;
+        case "cantAnswer":
+          say("My smart understanding is offline right now, so I can only answer simple questions, like \"does it have a pool?\" or \"which one is cheapest?\".");
+          break;
         case "details":
           if (a.applyDetails(step.fields)) {
             if (step.search) a.searchHotels();
@@ -317,7 +341,7 @@ export function VoiceProvider({ children }) {
         default:
       }
     }
-  }, [promptNext, stopConversation]);
+  }, [promptNext, stopConversation, showAnswer, say]);
 
   // The AI fallback, for phrasing the local rules don't cover.
   const askAi = useCallback(async () => {
@@ -333,18 +357,48 @@ export function VoiceProvider({ children }) {
 
     try {
       setProcessing(true);
-      const response = await api.post("/voice/interpret", { transcript: text });
-      dispatchIntent(actionsRef.current, response.data);
+      // What the user is looking at (ids only: the server loads the facts).
+      const view = pageRef.current.describe?.() || {};
+      const d = draftRef.current;
+      const response = await api.post("/voice/interpret", {
+        transcript: text,
+        page: view.page,
+        hotelId: view.hotelId,
+        resultIds: (view.results || []).slice(0, 10).map((h) => h.id),
+        draft: { city: d.city, checkIn: d.checkIn, checkOut: d.checkOut, guests: d.guests },
+      });
+      const result = response.data;
+
+      if (result.answer) {
+        logCommand(`Q: ${text}`);
+        showAnswer({
+          text: result.answer,
+          hotelIds: result.hotelIds,
+          places: result.places,
+          place: result.place,
+          comparison: result.comparison,
+          attribution: result.attribution,
+        });
+      } else {
+        dispatchIntent(actionsRef.current, result);
+      }
       setAiOffline(false);
     } catch (error) {
       console.error(error);
 
-      const limited = error.response?.data?.code === "AI_LIMIT";
+      // AI_LIMIT: no provider could answer. 429: our own per-minute limit.
+      const limited = error.response?.data?.code === "AI_LIMIT" || error.response?.status === 429;
       if (limited) {
-        // Quota used up: stop calling for a while; local phrases keep working.
-        aiPausedUntilRef.current = Date.now() + AI_PAUSE_MS;
+        // Stop calling for as long as the server says (a per-minute limit
+        // clears in seconds), or a while if unknown; local phrases keep working.
+        // (Our limiter's window is a minute; its Retry-After header isn't
+        // readable cross-origin.)
+        const retryAfter = Number(error.response.data?.retryAfter) || (error.response.status === 429 ? 60 : 0);
+        const pauseMs = retryAfter > 0 ? Math.min(Math.max(retryAfter * 1000, MIN_AI_PAUSE_MS), AI_PAUSE_MS) : AI_PAUSE_MS;
+        aiPausedUntilRef.current = Date.now() + pauseMs;
         setAiOffline(true);
-        setTimeout(() => setAiOffline(false), AI_PAUSE_MS);
+        clearTimeout(aiOfflineTimerRef.current);
+        aiOfflineTimerRef.current = setTimeout(() => setAiOffline(false), pauseMs);
       }
 
       logCommand(`Not understood: ${text}`);
@@ -352,7 +406,7 @@ export function VoiceProvider({ children }) {
     } finally {
       setProcessing(false);
     }
-  }, [logCommand, say]);
+  }, [logCommand, say, showAnswer]);
 
   // One finished phrase from the speech recogniser.
   const handleUtterance = useCallback((text) => {
@@ -366,6 +420,11 @@ export function VoiceProvider({ children }) {
       hotelNames: (view.results || []).map((h) => h.name),
       roomNames: (view.rooms || []).map((r) => r.name),
       hotelName: view.hotelName,
+      // For answering simple questions locally.
+      hotels: view.results || [],
+      openHotel: view.openHotel || null,
+      amenityLabels: amenityLabelsRef.current,
+      aiAvailable: Date.now() >= aiPausedUntilRef.current,
     });
 
     if (steps.length) {
@@ -448,6 +507,11 @@ export function VoiceProvider({ children }) {
       listening,
       speaking,
       aiOffline,
+      answerCard,
+      comparison,
+      closeComparison,
+      reopenComparison,
+      highlightIds,
       drawerOpen,
       recentCommands,
       processing,
@@ -474,6 +538,11 @@ export function VoiceProvider({ children }) {
       listening,
       speaking,
       aiOffline,
+      answerCard,
+      comparison,
+      closeComparison,
+      reopenComparison,
+      highlightIds,
       drawerOpen,
       recentCommands,
       processing,
@@ -501,6 +570,7 @@ export function VoiceProvider({ children }) {
     <VoiceContext.Provider value={value}>
       {children}
       <NoticeToast notice={notice} onClose={() => setNotice(null)} />
+      {comparison && <ComparisonModal rows={comparison} onClose={closeComparison} labels={amenityLabels} />}
     </VoiceContext.Provider>
   );
 }

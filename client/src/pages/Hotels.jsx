@@ -54,6 +54,7 @@ function Hotels() {
     updateDraft,
     notify,
     promptIfActive,
+    highlightIds,
   } = useVoice();
 
   const location = draft.city;
@@ -436,6 +437,7 @@ function Hotels() {
                 id={hotel.id}
                 name={hotel.name}
                 img={hotel.image}
+                highlighted={highlightIds.includes(hotel.id)}
                 reviews={Math.floor(hotel.rating * 100)}
                 price={`from ${formatPrice(hotel.fromPrice ?? hotel.price)}`}
                 rating={hotel.rating}

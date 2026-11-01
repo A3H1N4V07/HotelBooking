@@ -36,6 +36,8 @@ export function examplesFor(page, view = {}) {
         "Near the beach",
         "Show luxury hotels",
         first ? `Book ${first}` : "Book the first one",
+        "Which one is cheapest?",
+        "Compare the first two",
         "Book the first one",
         "Another city",
         "What's next?",
@@ -50,6 +52,9 @@ export function examplesFor(page, view = {}) {
       const other = (view.rooms || []).find((r) => r.id !== view.selectedRoom?.id)?.name;
       return [
         other ? `I'll take the ${other}` : "I'll take the family room",
+        "Does it have a pool?",
+        "Any restaurants nearby?",
+        "How far is it from the airport?",
         "For 3 guests",
         "Check out on the 14th",
         "How many rooms are left?",
