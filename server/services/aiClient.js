@@ -19,6 +19,22 @@ function cleanNulls(value) {
   return value;
 }
 
+// A provider that said "slow down" is skipped by every request until then:
+// the limits belong to the API key, which all users share, so there's no
+// point in each request hitting it again. 429s without a wait time pause the
+// provider for a minute.
+const DEFAULT_PAUSE_MS = 60 * 1000;
+const pausedUntil = new Map();
+
+function pauseProvider(name, ms) {
+  pausedUntil.set(name, Math.max(pausedUntil.get(name) || 0, Date.now() + ms));
+}
+
+// ms until the provider may be called again (0 = now).
+function pauseLeft(name) {
+  return Math.max(0, (pausedUntil.get(name) || 0) - Date.now());
+}
+
 // Provider order: AI_PROVIDERS="groq,gemini" (default). Unconfigured ones
 // (no API key) are skipped.
 function providerChain() {
@@ -45,6 +61,14 @@ async function generateJson({ systemInstruction, userText, responseSchema }) {
   const failures = [];
 
   for (const provider of chain) {
+    const left = pauseLeft(provider.name);
+    if (left > 0) {
+      const error = new Error(`${provider.name} is paused for ${Math.ceil(left / 1000)}s after a rate limit`);
+      error.retryAfterMs = left;
+      failures.push({ provider: provider.name, error, unavailable: true });
+      continue;
+    }
+
     try {
       const result = await provider.generate({
         systemInstruction,
@@ -56,6 +80,7 @@ async function generateJson({ systemInstruction, userText, responseSchema }) {
     } catch (error) {
       const timedOut = error.name === "TimeoutError" || error.name === "AbortError";
       failures.push({ provider: provider.name, error, unavailable: error.aiLimited || error.retryable || timedOut });
+      if (error.aiLimited) pauseProvider(provider.name, error.retryAfterMs || DEFAULT_PAUSE_MS);
       console.warn(`AI provider ${provider.name} failed${timedOut ? " (timeout)" : ""}: ${error.message.slice(0, 200)}`);
     }
   }
@@ -65,7 +90,7 @@ async function generateJson({ systemInstruction, userText, responseSchema }) {
   error.aiLimited = failures.every((f) => f.unavailable);
   // When the soonest provider should work again, if any said (e.g. Groq's
   // per-minute limit clears in seconds). Unknown = null.
-  const waits = failures.map((f) => f.error.retryAfterMs).filter((ms) => ms > 0);
+  const waits = failures.map((f) => f.error.retryAfterMs || pauseLeft(f.provider)).filter((ms) => ms > 0);
   error.retryAfterMs = waits.length ? Math.min(...waits) : null;
   throw error;
 }

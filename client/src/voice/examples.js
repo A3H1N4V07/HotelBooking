@@ -67,7 +67,7 @@ export function examplesFor(page, view = {}) {
     case "payment":
       return view.paid
         ? ["Show my bookings", "Download invoice", "Start a new search", STOP]
-        : ["Card details are typed, not spoken", "Show my bookings", "Go home", STOP];
+        : ["Card details are typed, not spoken", "Cancel booking", "Show my bookings", STOP];
 
     case "myBookings":
       return ["Download invoice", "Start a new search", "Go home", STOP];

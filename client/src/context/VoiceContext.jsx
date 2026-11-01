@@ -22,6 +22,8 @@ import useAmenities from "../hooks/useAmenities";
 import NoticeToast from "../components/NoticeToast";
 import ComparisonModal from "../components/ComparisonModal";
 import { hintExamples, pageFromPath } from "../voice/examples";
+import { logVoiceEvent } from "../voice/usageLog";
+import { isEcho, isBargeIn } from "../voice/echo";
 
 const VoiceContext = createContext(null);
 
@@ -35,6 +37,8 @@ const NOTICE_MS = 6000;
 const REPLIES_PREF_KEY = "voiceReplies";
 const PROMPT_REPEAT_MS = 6000;
 const RESPOND_DELAY_MS = 600;
+// How long after a reply ends a heard phrase may still be its echo.
+const ECHO_GRACE_MS = 1500;
 
 // "Didn't get that" with suggestions for the page you're on. When the AI is
 // offline (quota used up), say so plainly: it's not the user's phrasing.
@@ -85,10 +89,21 @@ export function VoiceProvider({ children }) {
   // assistant speaks, so `listening` alone can't tell us this.
   const wantListeningRef = useRef(false);
   const speakingRef = useRef(false);
+  // The reply being read (to recognise its echo), which say() call owns the
+  // speaking state, and when the last reply finished.
+  const replyRef = useRef("");
+  const sayIdRef = useRef(0);
+  const spokeUntilRef = useRef(0);
+  const bargedInRef = useRef(false);
   const noticeTimerRef = useRef(null);
   const lastPromptRef = useRef({ text: "", at: 0 });
   // What the assistant last asked for, so a bare answer ("3") can be understood.
   const expectsRef = useRef(null);
+  // The detail set most recently, for "no, I meant the 15th".
+  const lastFieldRef = useRef(null);
+  const setLastField = useCallback((field) => {
+    lastFieldRef.current = field;
+  }, []);
   const citiesRef = useRef([]);
   const processedRef = useRef(0);
   const aiBufferRef = useRef("");
@@ -136,6 +151,7 @@ export function VoiceProvider({ children }) {
     saveDraft(draftRef.current);
     setDraft(draftRef.current);
     expectsRef.current = null;
+    lastFieldRef.current = null;
   }, []);
 
   const getDraft = useCallback(() => draftRef.current, []);
@@ -146,7 +162,9 @@ export function VoiceProvider({ children }) {
 
   // ----- Speaking -----
   // Shows the reply in the drawer and, while the conversation is on (mic
-  // listening), reads it aloud with the mic paused so it can't hear itself.
+  // listening), reads it aloud. The mic stays on so the user can talk over
+  // the reply (see the barge-in effect below); what it hears of the reply
+  // itself is dropped as echo.
   const say = useCallback(async (text) => {
     if (!text) return;
 
@@ -154,32 +172,37 @@ export function VoiceProvider({ children }) {
 
     if (!repliesOn || !canSpeak || (!listeningRef.current && !speakingRef.current)) return;
 
-    const resumeAfter = listeningRef.current;
+    const id = ++sayIdRef.current;
+    replyRef.current = text;
     speakingRef.current = true;
     setSpeaking(true);
 
     try {
-      if (resumeAfter) await SpeechRecognition.stopListening();
       await speak(text);
     } finally {
-      speakingRef.current = false;
-      setSpeaking(false);
-      resetTranscriptRef.current();
+      // A newer reply replaced this one (speak() cancels the previous): it
+      // owns the speaking state now.
+      if (id === sayIdRef.current) {
+        speakingRef.current = false;
+        setSpeaking(false);
+        spokeUntilRef.current = Date.now();
+        // Clears the echo from "Heard:"; kept after a barge-in, whose words
+        // are still to be handled.
+        if (!bargedInRef.current) resetTranscriptRef.current();
 
-      // Resume only if the user hasn't switched the mic off meanwhile.
-      if (resumeAfter && wantListeningRef.current) {
-        try {
-          await SpeechRecognition.startListening({ continuous: true });
-        } catch {
-          // Chrome can refuse a restart while the previous session is still
-          // closing; try once more shortly.
-          setTimeout(() => {
-            if (wantListeningRef.current) SpeechRecognition.startListening({ continuous: true });
-          }, 400);
+        // Chrome sometimes ends recognition on its own; resume if the user
+        // hasn't switched the mic off meanwhile.
+        if (wantListeningRef.current && !listeningRef.current) {
+          SpeechRecognition.startListening({ continuous: true }).catch(() => {});
         }
       }
     }
   }, [repliesOn]);
+
+  // Stops the reply being read, keeping the conversation on.
+  const skipReply = useCallback(() => {
+    if (speakingRef.current) stopSpeaking();
+  }, []);
 
   // A question whose short answer should be read as `expects` ("city", ...).
   const ask = useCallback((text, expects) => {
@@ -198,15 +221,17 @@ export function VoiceProvider({ children }) {
 
   // ----- Confirmation -----
   // Booking only ever happens after an explicit "yes" (or button click).
-  const askConfirm = useCallback((text, onYes) => {
-    const pending = { text, onYes };
+  // `options` adapt the card and the "no" reply to other questions than
+  // booking (e.g. cancelling): { title, yesLabel, yesText, noText }.
+  const askConfirm = useCallback((text, onYes, options = {}) => {
+    const pending = { text, onYes, ...options };
     pendingConfirmRef.current = pending;
     expectsRef.current = "confirm";
     setPendingConfirm(pending);
     say(text);
   }, [say]);
 
-  const answerConfirm = useCallback((yes) => {
+  const answerConfirm = useCallback((yes, quiet = false) => {
     const pending = pendingConfirmRef.current;
     pendingConfirmRef.current = null;
     expectsRef.current = null;
@@ -215,10 +240,10 @@ export function VoiceProvider({ children }) {
     if (!pending) return false;
 
     if (yes) {
-      say("Booking it now.");
+      say(pending.yesText || "Booking it now.");
       pending.onYes();
-    } else {
-      say('Okay, not booked. Tell me what to change, for example "check out on the 14th" or "my phone number is ...".');
+    } else if (!quiet) {
+      say(pending.noText || 'Okay, not booked. Tell me what to change, for example "check out on the 14th" or "my phone number is ...".');
     }
 
     return true;
@@ -273,8 +298,10 @@ export function VoiceProvider({ children }) {
         promptNext,
         answerConfirm,
         hasPendingConfirm,
+        askConfirm,
+        setLastField,
       }),
-    [navigate, logCommand, updateDraft, resetDraft, clearTrip, getDraft, say, ask, notify, promptNext, answerConfirm, hasPendingConfirm]
+    [navigate, logCommand, updateDraft, resetDraft, clearTrip, getDraft, say, ask, notify, promptNext, answerConfirm, hasPendingConfirm, askConfirm, setLastField]
   );
 
   const actionsRef = useRef(actions);
@@ -313,7 +340,7 @@ export function VoiceProvider({ children }) {
     for (const step of steps) {
       switch (step.type) {
         case "yes": a.yes(); break;
-        case "no": a.no(); break;
+        case "no": a.no(step.quiet); break;
         case "openMyBookings": a.openMyBookings(); break;
         case "downloadInvoice": a.downloadInvoice(); break;
         case "logout": a.logout(); break;
@@ -321,6 +348,7 @@ export function VoiceProvider({ children }) {
         case "changeCity": a.changeCity(); break;
         case "changeDates": a.changeDates(); break;
         case "goHome": a.goHome(); break;
+        case "cancelBooking": a.cancelBooking(); break;
         case "whatNext": a.whatNext(); break;
         case "stopListening": stopConversation("Okay, I've stopped listening. Tap the mic whenever you need me."); break;
         case "search": a.searchHotels(); break;
@@ -349,16 +377,23 @@ export function VoiceProvider({ children }) {
     aiBufferRef.current = "";
     if (!text) return;
 
+    const view = pageRef.current.describe?.() || {};
+    const startedAt = performance.now();
+    // Usage stats keep missed phrases, but never a name or phone answer.
+    const phrase = ["guestName", "guestPhone"].includes(expectsRef.current) ? undefined : text;
+    const track = (handledBy, action) =>
+      logVoiceEvent({ handledBy, page: view.page, action, ms: performance.now() - startedAt, phrase });
+
     if (Date.now() < aiPausedUntilRef.current) {
+      track("offline");
       logCommand(`Not understood: ${text}`);
-      say(hintFor(text, pageRef.current.describe?.() || {}, true));
+      say(hintFor(text, view, true));
       return;
     }
 
     try {
       setProcessing(true);
       // What the user is looking at (ids only: the server loads the facts).
-      const view = pageRef.current.describe?.() || {};
       const d = draftRef.current;
       const response = await api.post("/voice/interpret", {
         transcript: text,
@@ -370,6 +405,7 @@ export function VoiceProvider({ children }) {
       const result = response.data;
 
       if (result.answer) {
+        track("ai", result.intent);
         logCommand(`Q: ${text}`);
         showAnswer({
           text: result.answer,
@@ -380,7 +416,8 @@ export function VoiceProvider({ children }) {
           attribution: result.attribution,
         });
       } else {
-        dispatchIntent(actionsRef.current, result);
+        const understood = dispatchIntent(actionsRef.current, result);
+        track(understood ? "ai" : "missed", result.intent);
       }
       setAiOffline(false);
     } catch (error) {
@@ -401,8 +438,9 @@ export function VoiceProvider({ children }) {
         aiOfflineTimerRef.current = setTimeout(() => setAiOffline(false), pauseMs);
       }
 
+      track(limited ? "offline" : "missed");
       logCommand(`Not understood: ${text}`);
-      say(hintFor(text, pageRef.current.describe?.() || {}, limited));
+      say(hintFor(text, view, limited));
     } finally {
       setProcessing(false);
     }
@@ -411,10 +449,12 @@ export function VoiceProvider({ children }) {
   // One finished phrase from the speech recogniser.
   const handleUtterance = useCallback((text) => {
     const view = pageRef.current.describe?.() || {};
+    const startedAt = performance.now();
 
     const steps = understand(text, {
       pending: Boolean(pendingConfirmRef.current),
       expects: expectsRef.current,
+      lastField: lastFieldRef.current,
       page: view.page,
       cities: citiesRef.current,
       hotelNames: (view.results || []).map((h) => h.name),
@@ -430,6 +470,12 @@ export function VoiceProvider({ children }) {
     if (steps.length) {
       clearTimeout(aiTimerRef.current);
       aiBufferRef.current = "";
+      logVoiceEvent({
+        handledBy: "local",
+        page: view.page,
+        action: steps.map((s) => s.type).join("+"),
+        ms: performance.now() - startedAt,
+      });
       runSteps(steps);
       return;
     }
@@ -443,10 +489,12 @@ export function VoiceProvider({ children }) {
 
   const {
     transcript,
+    interimTranscript,
     finalTranscript,
     listening,
     resetTranscript,
     browserSupportsSpeechRecognition,
+    isMicrophoneAvailable,
   } = useSpeechRecognition();
 
   useEffect(() => {
@@ -464,10 +512,33 @@ export function VoiceProvider({ children }) {
     const fresh = finalTranscript.slice(processedRef.current).trim();
     processedRef.current = finalTranscript.length;
 
-    if (fresh && !speakingRef.current) handleUtterance(fresh);
+    if (!fresh || speakingRef.current) return;
+
+    // The recogniser can deliver the reply's echo just after it ends (but
+    // after a barge-in, this is what the user said over the reply).
+    const bargedIn = bargedInRef.current;
+    bargedInRef.current = false;
+    if (!bargedIn && Date.now() - spokeUntilRef.current < ECHO_GRACE_MS && isEcho(fresh, replyRef.current)) return;
+
+    handleUtterance(fresh);
   }, [finalTranscript, handleUtterance]);
 
+  // Barge-in: the user talking over the reply stops it, and what they say
+  // is then handled as usual (its final transcript arrives after the stop).
+  useEffect(() => {
+    if (speakingRef.current && interimTranscript && isBargeIn(interimTranscript, replyRef.current)) {
+      bargedInRef.current = true;
+      stopSpeaking();
+    }
+  }, [interimTranscript]);
+
   const toggleListening = useCallback(() => {
+    // While a reply is read, a tap skips it (another tap turns the mic off).
+    if (wantListeningRef.current && speakingRef.current) {
+      skipReply();
+      return;
+    }
+
     if (wantListeningRef.current || listening) {
       stopConversation();
       setDrawerOpen(false);
@@ -482,7 +553,7 @@ export function VoiceProvider({ children }) {
       lastPromptRef.current = { text: "", at: 0 };
       setTimeout(promptNext, 300);
     }
-  }, [listening, resetTranscript, promptNext, stopConversation]);
+  }, [listening, resetTranscript, promptNext, stopConversation, skipReply]);
 
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false);
@@ -521,6 +592,7 @@ export function VoiceProvider({ children }) {
       setPageContext,
       getPageView,
       browserSupportsSpeechRecognition,
+      isMicrophoneAvailable,
       draft,
       updateDraft,
       resetDraft,
@@ -552,6 +624,7 @@ export function VoiceProvider({ children }) {
       setPageContext,
       getPageView,
       browserSupportsSpeechRecognition,
+      isMicrophoneAvailable,
       draft,
       updateDraft,
       resetDraft,

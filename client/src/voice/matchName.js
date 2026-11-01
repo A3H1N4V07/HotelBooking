@@ -18,11 +18,25 @@ function score(spoken, name) {
 
   if (said.length === 0 || target.length === 0) return 0;
 
-  const close = (a, b) => a === b || (a.length > 3 && b.length > 3 && (a.startsWith(b) || b.startsWith(a) || editDistance(a, b) <= 1));
+  // Longer words may be further off ("orkid" ~ "orchid").
+  const slack = (w) => (w.length >= 7 ? 2 : 1);
+  const close = (a, b) =>
+    a === b ||
+    (a.length > 3 && b.length > 3 && (a.startsWith(b) || b.startsWith(a) || editDistance(a, b) <= Math.min(slack(a), slack(b))));
   const hits = said.filter((w) => target.some((t) => close(w, t))).length;
 
   // Penalise names with many words the user didn't say ("Grand" vs "Grand Retreat Palace").
-  return (hits / said.length) * Math.min(1, (hits + 1) / target.length);
+  const byWords = (hits / said.length) * Math.min(1, (hits + 1) / target.length);
+
+  // The whole name with spaces ignored, for words split or joined
+  // differently ("lake side inn" ~ "Lakeside Inn") and sound-alike spellings
+  // ("blue orkid lodge" ~ "Blue Orchid Lodge").
+  const a = said.join("");
+  const b = target.join("");
+  const whole = 1 - editDistance(a, b) / Math.max(a.length, b.length);
+
+  // (Short phrases are too easily "close" to a short name.)
+  return Math.max(byWords, a.length >= 6 && whole >= 0.85 ? whole : 0);
 }
 
 function editDistance(a, b) {

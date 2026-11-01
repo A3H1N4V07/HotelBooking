@@ -63,7 +63,7 @@ export function parseSpokenPhone(text) {
 const AMENITY_WORDS = [
   ["pool", /\bpool|swimming/],
   ["breakfast", /breakfast/],
-  ["wifi", /wi-?fi|internet/],
+  ["wifi", /wi[- ]?fi|internet/],
   ["parking", /parking/],
   ["gym", /\bgym|fitness/],
   ["spa", /\bspa\b|massage/],

@@ -17,6 +17,7 @@ const INTENT_HANDLERS = {
   LOGOUT: (a) => a.logout(),
 };
 
+// Returns false when nothing in the result could be used.
 export function dispatchIntent(actions, result) {
   const changed = actions.applyDetails(result);
   const handler = INTENT_HANDLERS[result.intent];
@@ -28,4 +29,6 @@ export function dispatchIntent(actions, result) {
   } else {
     actions.unknown();
   }
+
+  return Boolean(handler || changed);
 }

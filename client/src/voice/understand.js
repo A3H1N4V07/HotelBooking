@@ -15,8 +15,23 @@ import { matchByName } from "./matchName";
 //   hotelNames hotels currently listed (hotels/home page)
 //   roomNames  room types of the hotel being viewed
 //   hotelName  the hotel being viewed
+//   lastField  the detail set most recently (for "no, I meant the 15th")
 
 const FILLERS = /^(?:ok(?:ay)?|please|so|and|then|um+|uh+|hmm+|hey|well|alright|all right|actually|now|oh|hello|hi)\s+/;
+
+// Speech recognition slips seen with counts ("for two nights" heard as
+// "for to nights", "4 2 nights" or "42 nights"), and spellings that the
+// patterns below don't expect.
+const COUNTED = "(nights?|people|persons|guests?|adults|of us)";
+const SPOKEN_FIXES = [
+  [/([a-z])-([a-z])/g, "$1 $2"], // "check-in" -> "check in"
+  [/\b(\d{1,2}) (st|nd|rd|th)\b/g, "$1$2"], // "14 th" -> "14th"
+  [new RegExp(`\\b(?:to|too) ${COUNTED}\\b`, "g"), "two $1"],
+  [new RegExp(`\\bfor ${COUNTED}\\b`, "g"), "four $1"],
+  [new RegExp(`\\b4 (\\d{1,2}) ${COUNTED}\\b`, "g"), "for $1 $2"],
+  // "42 nights": more than anyone books, so "for 2 nights".
+  [new RegExp(`\\b4([1-9]) ${COUNTED}\\b`, "g"), "for $1 $2"],
+];
 
 // "Okay, yes please." -> "yes"
 export function normalize(text) {
@@ -27,6 +42,8 @@ export function normalize(text) {
     .replace(/[^a-z0-9'₹\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  for (const [pattern, replacement] of SPOKEN_FIXES) t = t.replace(pattern, replacement);
 
   let previous;
   do {
@@ -126,7 +143,54 @@ export function extractDetails(t, ctx) {
   return f;
 }
 
-const GENERIC_TARGET = /^(?:it|this|that|now|this one|that one|one|first|the first|first one|the first one|first hotel|the first hotel|top one|the top one|hotel|this hotel|that hotel|the hotel|a room|room|me|for me)$/;
+// A room whose full name is in the sentence ("family room" in "change to the
+// family room"), unless negated ("not the family room"). Longest name first,
+// so "Deluxe Family Room" beats "Family Room".
+function roomInSentence(t, roomNames) {
+  return (
+    [...roomNames]
+      .sort((a, b) => b.length - a.length)
+      .find((name) => {
+        const spoken = name.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+        const at = spoken ? t.search(new RegExp(`\\b${spoken}\\b`)) : -1;
+        return at >= 0 && !/\b(?:not|don'?t|without|no need for)(?: the| a)?\s*$/.test(t.slice(0, at));
+      }) || null
+  );
+}
+
+// ----- Corrections -----
+// "no, I meant the 15th", "make it 3 guests", "sorry, Goa": a fix to what
+// was just set (`ctx.lastField`), or "change check-out to Friday" naming the
+// detail. Returns the fields to apply, or null.
+const CORRECTION = /^(?:(?:no|nope|sorry|oops|wait)\s+)?(?:i meant|i mean|i said|i wanted|make (?:it|that)|change (?:it|that) to|not that)\s+(.+)$/;
+const CHANGE_FIELD = /\b(?:change|move|make|set|update|shift|push)\s+(?:the |my )?(check ?in|check ?out|arrival|departure|guests?|number of guests|people)(?: date| day)?\s+(?:to|for|as|on)\s+(.+)$/;
+
+function correction(t, ctx) {
+  const change = t.match(CHANGE_FIELD);
+  if (change) {
+    const [, field, value] = change;
+    if (/in|arrival/.test(field) && parseSpokenDate(value)) return { checkIn: value };
+    if (/out|departure/.test(field) && parseSpokenDate(value)) return { checkOut: value };
+    if (/guest|people/.test(field) && parseSpokenNumber(value)) return { guests: parseSpokenNumber(value) };
+    return null;
+  }
+
+  const fix = t.match(CORRECTION);
+  if (!fix) return null;
+
+  const value = fix[1].replace(/^(?:the date |the day )/, "");
+  const last = ctx.lastField;
+  // The bare value fills the detail just set; other details are read as usual.
+  const details = extractDetails(value, { ...ctx, expects: last });
+  if (Object.keys(details).length) return details;
+
+  if ((last === "checkIn" || last === "checkOut") && parseSpokenDate(value)) return { [last]: value };
+  if (last === "guests" && parseSpokenNumber(value)) return { guests: parseSpokenNumber(value) };
+  if (last === "city" && value.split(" ").length <= 3 && !/\d/.test(value)) return { city: titleCase(value) };
+  return null;
+}
+
+const GENERIC_TARGET =/^(?:it|this|that|now|this one|that one|one|first|the first|first one|the first one|first hotel|the first hotel|top one|the top one|hotel|this hotel|that hotel|the hotel|a room|room|me|for me)$/;
 
 // Hotel/room name after "book"/"open"/"I'll take", without filler.
 function cleanTarget(text) {
@@ -240,6 +304,24 @@ export function understand(text, ctx = {}) {
   const cities = ctx.cities || [];
   const fullCtx = { ...ctx, cities };
 
+  // On a hotel's page, a room named anywhere in the sentence ("change to the
+  // family room", "no, the deluxe room") means that room, never the amenity
+  // with the same name. While a booking awaits yes/no, it replaces that
+  // booking question (the new room is confirmed instead).
+  const room = ctx.page === "hotel" && roomInSentence(t, ctx.roomNames || []);
+  if (room) {
+    const choose = { type: "chooseRoom", value: room };
+    return ctx.pending ? [{ type: "no", quiet: true }, choose] : [choose];
+  }
+
+  // A correction, even while a booking awaits yes/no ("no, I meant the
+  // 15th" = not this booking, fix the date, then ask again).
+  const fixed = correction(t, fullCtx);
+  if (fixed) {
+    const details = { type: "details", fields: fixed, correction: true };
+    return ctx.pending ? [{ type: "no", quiet: true }, details] : [details];
+  }
+
   // 1. A pending booking confirmation: yes / no first.
   if (ctx.pending) {
     if (NO.test(t)) return [{ type: "no" }];
@@ -257,6 +339,12 @@ export function understand(text, ctx = {}) {
   if (/\bmy (?:bookings?|reservations?|trips?)\b/.test(t)) return [{ type: "openMyBookings" }];
   if (/\binvoice\b/.test(t)) return [{ type: "downloadInvoice" }];
   if (/\b(?:log|sign) ?out\b/.test(t)) return [{ type: "logout" }];
+
+  // On the payment page: drop this unpaid booking (asks to confirm first),
+  // also for "change the room/dates", which needs a new booking anyway.
+  if (ctx.page === "payment" && /\b(?:cancel|go back|back to (?:the )?hotel|change (?:the |my )?(?:room|booking|dates?)|don'?t want (?:to pay|this|it))\b/.test(t)) {
+    return [{ type: "cancelBooking" }];
+  }
 
   // "book for another city", "somewhere else", "change the dates": clear that
   // part and ask again (unless the new value is in the same sentence).

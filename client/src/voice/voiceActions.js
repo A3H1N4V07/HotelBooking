@@ -39,6 +39,8 @@ export function createVoiceActions({
   promptNext,
   answerConfirm,
   hasPendingConfirm,
+  askConfirm,
+  setLastField = () => {},
 }) {
   const page = () => pageRef.current;
   const pageName = () => page().describe?.().page;
@@ -72,12 +74,18 @@ export function createVoiceActions({
       const start = patch.checkIn || draft.checkIn;
       const checkOut = fields.checkOut ? parseSpokenDate(fields.checkOut, start || undefined) : "";
 
+      // Moving check-in alone keeps the length of the stay.
+      const keptNights = patch.checkIn ? nightsBetween(draft.checkIn, draft.checkOut) : 0;
+
       if (checkOut && (!start || nightsBetween(start, checkOut) > 0)) {
         patch.checkOut = checkOut;
         said.push(`to ${speakDate(checkOut)}`);
       } else if (Number.isInteger(fields.nights) && fields.nights >= 1 && fields.nights <= 30 && start) {
         patch.checkOut = addDays(start, fields.nights);
         said.push(`${fields.nights} nights`);
+      } else if (keptNights && !fields.checkOut) {
+        patch.checkOut = addDays(patch.checkIn, keptNights);
+        said.push(`to ${speakDate(patch.checkOut)}`);
       }
 
       if (Number.isInteger(fields.guests) && fields.guests >= 1 && fields.guests <= 20) {
@@ -122,6 +130,12 @@ export function createVoiceActions({
       }
 
       if (said.length === 0) return false;
+
+      // What a following "no, I meant …" refers to.
+      const last = ["checkOut", "checkIn", "guests", "city", "maxPrice"].find((k) =>
+        k === "checkOut" ? fields.checkOut || fields.nights : fields[k]
+      );
+      if (last) setLastField(last);
 
       logCommand(said.join(", "));
       updateDraft(patch);
@@ -380,10 +394,11 @@ export function createVoiceActions({
       answerConfirm(true);
     },
 
-    no() {
+    // `quiet`: a correction follows, which asks again by itself.
+    no(quiet = false) {
       if (!hasPendingConfirm()) return;
       logCommand("No");
-      answerConfirm(false);
+      answerConfirm(false, quiet);
     },
 
     // Clears the trip (keeps the guest's name and phone) and starts again.
@@ -400,6 +415,23 @@ export function createVoiceActions({
       updateDraft({ city: "" });
       if (pageName() === "hotel") navigate("/");
       ask("Sure. Which city would you like instead?", "city");
+    },
+
+    // "cancel booking" / "go back" on the payment page: releases the unpaid
+    // booking after a yes, and goes back to the hotel.
+    cancelBooking() {
+      if (!page().cancelBooking) {
+        say("There's no unpaid booking here to cancel. Your bookings are under \"show my bookings\".");
+        return;
+      }
+
+      logCommand("Cancel booking");
+      askConfirm("Cancel this booking and go back to the hotel? Say yes or no.", () => page().cancelBooking(), {
+        title: "Cancel booking",
+        yesLabel: "Yes, cancel",
+        yesText: "Cancelling it.",
+        noText: "Okay, the booking stays. Tap Pay Now when you're ready.",
+      });
     },
 
     // "change the dates"

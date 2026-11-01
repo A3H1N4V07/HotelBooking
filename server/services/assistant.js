@@ -139,6 +139,9 @@ async function buildFacts({ hotelId, resultIds = [] }) {
       };
     });
 
+  // Commands only need the names in order ("book the second one").
+  const names = hotels.map((h) => `${h.ref}${h.isOpen ? " [currently open]" : ""}: ${h.name}, ${h.city}`).join("\n");
+
   const text = hotels
     .map((h) => {
       const where = Object.entries(h.distances)
@@ -154,8 +157,15 @@ async function buildFacts({ hotelId, resultIds = [] }) {
     })
     .join("\n");
 
-  return { hotels, text };
+  return { hotels, text, names };
 }
+
+// Speech has no question marks, so this goes by the words. A miss only means
+// the model sees names instead of full facts (and says it doesn't know).
+const QUESTION =
+  /\?|^\s*(?:does|do|is|are|was|were|can|could|will|would|has|have|how|what|which|where|why|who|when|whats|what's|tell me|any|compare)\b|\b(?:nearby|near by|how far|distance|compare|cheaper|cheapest|closest|nearest|better|best rated|difference)\b/i;
+
+const isQuestion = (transcript) => QUESTION.test(String(transcript || ""));
 
 // Refs the model mentioned -> hotels from the facts (unknown refs dropped).
 function pickHotels(facts, refs) {
@@ -263,11 +273,17 @@ function comparison(facts, result) {
 // transcript + what the user is looking at -> command fields and/or answer.
 async function assist({ transcript, page, hotelId, resultIds, draft }) {
   const facts = await buildFacts({ hotelId, resultIds });
+  // Full facts cost ~150 tokens per hotel and commands don't need them:
+  // with 4 hotels on screen a command drops from ~2,400 to ~1,900 tokens
+  // (more with 10), so more calls fit in the free per-minute budget.
+  const question = isQuestion(transcript);
 
   const context = [
     `PAGE: ${page || "unknown"}`,
     draft?.city && `TRIP: ${[draft.city, draft.checkIn && `${draft.checkIn} to ${draft.checkOut}`, draft.guests && `${draft.guests} guests`].filter(Boolean).join(", ")}`,
-    `HOTEL FACTS (in on-screen order):\n${facts.text}`,
+    question || !facts.hotels.length
+      ? `HOTEL FACTS (in on-screen order):\n${facts.text}`
+      : `HOTELS ON SCREEN (in order; facts left out because this isn't a question):\n${facts.names}`,
   ].filter(Boolean).join("\n");
 
   const result = await generateJson({

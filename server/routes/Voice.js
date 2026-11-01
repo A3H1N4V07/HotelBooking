@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { assist } = require("../services/assistant");
 const { aiLimiter } = require("../middleware/rateLimit");
+const { VoiceEvent } = require("../models");
 
 const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : undefined);
 
@@ -45,6 +46,35 @@ router.post("/interpret", aiLimiter, async (req, res) => {
         .json({ success: false, code: "AI_LIMIT", retryAfter, message: "Voice AI is unavailable right now" });
     }
 
+    console.error(error);
+    res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+});
+
+// POST /voice/events  { events: [{ handledBy, page?, action?, ms?, phrase? }] }
+// How each phrase was handled, sent in small batches by the client. Feeds
+// the admin's "voice usage" numbers. Phrases are kept only for ones the
+// local rules missed (to improve them), with digits masked.
+const HANDLED_BY = ["local", "ai", "missed", "offline"];
+const MAX_EVENTS = 20;
+
+router.post("/events", async (req, res) => {
+  const events = Array.isArray(req.body.events) ? req.body.events.slice(0, MAX_EVENTS) : [];
+
+  const rows = events
+    .filter((e) => e && HANDLED_BY.includes(e.handledBy))
+    .map((e) => ({
+      handledBy: e.handledBy,
+      page: str(e.page, 20) || null,
+      action: str(e.action, 40) || null,
+      ms: Number.isInteger(e.ms) && e.ms >= 0 && e.ms < 600000 ? e.ms : null,
+      phrase: e.handledBy !== "local" && typeof e.phrase === "string" ? e.phrase.replace(/\d/g, "#").slice(0, 200) : null,
+    }));
+
+  try {
+    if (rows.length) await VoiceEvent.bulkCreate(rows);
+    res.status(204).end();
+  } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Something went wrong" });
   }

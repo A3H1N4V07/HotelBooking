@@ -323,6 +323,54 @@ router.get(
 );
 
 // =====================
+// Cancel Booking
+// Only unpaid bookings: frees the held room at once instead of waiting for
+// the hold to expire. Paid bookings would need a refund, which isn't built.
+// =====================
+router.post("/:id/cancel", auth, async (req, res) => {
+
+    try {
+
+        const result = await sequelize.transaction(async (transaction) => {
+
+            // Same row lock as payment, so a cancel and a payment can't overlap.
+            const booking = await Booking.findByPk(req.params.id, { transaction, lock: transaction.LOCK.UPDATE });
+
+            if (!booking) return { status: 404, message: "Booking not found" };
+
+            if (booking.userId !== req.user.id) return { status: 403, message: "Unauthorized" };
+
+            if (booking.paymentStatus === "Paid") {
+                return { status: 409, message: "This booking is paid. Please contact support to cancel it." };
+            }
+
+            if (booking.bookingStatus !== "Cancelled") {
+                // Cancelled bookings never count as holding a room (availability.js).
+                await booking.update({ bookingStatus: "Cancelled" }, { transaction });
+            }
+
+            return { status: 200, booking };
+
+        });
+
+        if (result.status !== 200) {
+            return res.status(result.status).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, booking: result.booking });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Something went wrong"
+        });
+    }
+});
+
+// =====================
 // Get Single Booking
 // Keep this LAST
 // =====================

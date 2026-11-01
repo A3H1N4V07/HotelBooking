@@ -46,6 +46,22 @@ function MyBookings() {
     }
   };
 
+  // Two clicks: the first asks, the second cancels (unpaid bookings only).
+  const [confirmingId, setConfirmingId] = useState(null);
+
+  const handleCancel = async (bookingId) => {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/cancel`);
+      setBookings((list) => list.map((b) => (b.id === bookingId ? { ...b, ...response.data.booking } : b)));
+      notify("Booking cancelled and the room released.");
+    } catch (error) {
+      console.error(error);
+      notify(error.response?.data?.message || "Couldn't cancel the booking. Please try again.", "error");
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
   const statusBadgeClass = (status) => {
     if (status === "Confirmed" || status === "Paid") return "bg-success";
     if (status === "Cancelled" || status === "Failed") return "bg-danger";
@@ -129,6 +145,13 @@ function MyBookings() {
                             <Link to={`/payment/${booking.id}`} className="btn btn-sm btn-gold">
                               {booking.paymentStatus === "Failed" ? "Retry payment" : "Pay now"}
                             </Link>
+                            <button
+                              className={`btn btn-sm ${confirmingId === booking.id ? "btn-danger" : "btn-outline-danger"}`}
+                              onClick={() => (confirmingId === booking.id ? handleCancel(booking.id) : setConfirmingId(booking.id))}
+                              onBlur={() => setConfirmingId((id) => (id === booking.id ? null : id))}
+                            >
+                              {confirmingId === booking.id ? "Confirm cancel" : "Cancel"}
+                            </button>
                             <HoldNotice holdExpiresAt={booking.holdExpiresAt} compact />
                           </div>
                         )}

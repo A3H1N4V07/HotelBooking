@@ -63,6 +63,15 @@ router.post("/", auth, async (req, res) => {
       });
     }
 
+    if (booking.bookingStatus === "Cancelled") {
+      await transaction.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message: "This booking was cancelled. Please book again.",
+      });
+    }
+
     // Never charge for a room someone else got after this booking's hold ran out.
     const hold = await renewHoldIfExpired(booking, transaction);
 

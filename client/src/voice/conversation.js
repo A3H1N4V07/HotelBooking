@@ -45,7 +45,13 @@ function askTripDetails(draft) {
       expects: "checkOut",
     };
   }
-  if (!draft.guests) return { say: "How many guests?", expects: "guests" };
+  // Reads the dates back, so a misheard date is caught before the search.
+  if (!draft.guests) {
+    return {
+      say: `${speakDate(draft.checkIn)} to ${speakDate(draft.checkOut)}, ${plural(nightsBetween(draft.checkIn, draft.checkOut), "night")}. How many guests?`,
+      expects: "guests",
+    };
+  }
   return null;
 }
 
@@ -131,7 +137,8 @@ export function nextPrompt(draft, view = {}, amenityLabels = {}) {
       return {
         say:
           "Your room is held for 15 minutes. Tap Pay Now and enter your card to finish. " +
-          "For your security I can't take card details by voice.",
+          "For your security I can't take card details by voice. " +
+          "To change the room or dates instead, say \"cancel booking\".",
       };
 
     case "login":
