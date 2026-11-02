@@ -12,7 +12,7 @@ function PageHeader({ eyebrow, title, subtitle, children, image, overlap = false
         paddingTop: NAV_HEIGHT + 40,
         paddingBottom: overlap ? 88 : 48,
         ...(image && {
-          backgroundImage: `linear-gradient(120deg, rgba(30,27,75,0.94), rgba(91,33,182,0.78)), url(${image})`,
+          backgroundImage: `linear-gradient(120deg, rgba(11,46,44,0.94), rgba(20,80,75,0.78)), url(${image})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }),

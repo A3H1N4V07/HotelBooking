@@ -22,7 +22,7 @@ function BookingFormModal({
   return (
     <div
       className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ background: "rgba(30,27,75,0.55)", backdropFilter: "blur(6px)", zIndex: 1060 }}
+      style={{ background: "rgba(11,46,44,0.55)", backdropFilter: "blur(6px)", zIndex: 1060 }}
       onClick={onClose}
     >
       <div

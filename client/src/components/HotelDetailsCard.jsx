@@ -246,7 +246,7 @@ function HotelDetailsCard({ hotel }) {
           marginTop: -NAV_HEIGHT,
           paddingTop: NAV_HEIGHT + 96,
           paddingBottom: 96,
-          backgroundImage: `linear-gradient(180deg, rgba(30,27,75,0.45), rgba(30,27,75,0.92)), url(${hotel.image})`,
+          backgroundImage: `linear-gradient(180deg, rgba(11,46,44,0.45), rgba(11,46,44,0.92)), url(${hotel.image})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

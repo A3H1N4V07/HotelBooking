@@ -1,21 +1,21 @@
 :root {
-  /* Dark pair: deep indigo into violet, for headers, hero, footer, glass. */
-  --dark-1: #1e1b4b;
-  --dark-2: #5b21b6;
-  /* Accent pair: orange into pink, for buttons, highlights and the mic. */
-  --accent-1: #f97316;
-  --accent-2: #db2777;
-  --accent-light: #fdba74;
-  /* Light pair: lavender into blush, for page backgrounds and soft cards. */
-  --light-1: #f5f3ff;
-  --light-2: #fdf2f8;
+  /* Dark pair: deep teal into sea green, for headers, hero, footer, glass. */
+  --dark-1: #0b2e2c;
+  --dark-2: #14504b;
+  /* Accent pair: warm terracotta, for buttons, highlights and the mic. */
+  --accent-1: #e8814f;
+  --accent-2: #d4623b;
+  --accent-light: #e9c46a;
+  /* Light pair: warm ivory into sand, for page backgrounds and soft cards. */
+  --light-1: #faf7f2;
+  --light-2: #f3ede4;
 
   /* Bootstrap's own colors, retinted to match. */
-  --bs-warning-rgb: 249, 115, 22;
-  --bs-info-rgb: 236, 72, 153;
-  --bs-dark-rgb: 30, 27, 75;
-  --bs-link-color: #6d28d9;
-  --bs-link-hover-color: #db2777;
+  --bs-warning-rgb: 212, 98, 59;
+  --bs-info-rgb: 42, 157, 143;
+  --bs-dark-rgb: 11, 46, 44;
+  --bs-link-color: #14504b;
+  --bs-link-hover-color: #d4623b;
 }
 
 body {
@@ -36,7 +36,7 @@ body {
 }
 
 .text-gradient {
-  background: linear-gradient(90deg, var(--accent-light), #f9a8d4);
+  background: linear-gradient(90deg, var(--accent-light), #f4a261);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -53,7 +53,7 @@ body {
 .btn-accent:hover,
 .btn-accent:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(219, 39, 119, 0.35);
+  box-shadow: 0 10px 20px rgba(212, 98, 59, 0.35);
   color: #fff;
 }
 
@@ -77,13 +77,13 @@ body {
 
 .form-control:focus,
 .form-select:focus {
-  border-color: #c4b5fd;
-  box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.18);
+  border-color: #8fc9c1;
+  box-shadow: 0 0 0 0.25rem rgba(31, 111, 103, 0.18);
 }
 
 .form-check-input:checked {
-  background-color: #7c3aed;
-  border-color: #7c3aed;
+  background-color: #1f6f67;
+  border-color: #1f6f67;
 }
 
 .btn-outline-glass {
@@ -108,7 +108,7 @@ body {
 }
 
 .glass-dark {
-  background: rgba(30, 27, 75, 0.72);
+  background: rgba(11, 46, 44, 0.72);
   backdrop-filter: blur(16px);
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -121,7 +121,7 @@ body {
 
 .hover-lift:hover {
   transform: translateY(-6px);
-  box-shadow: 0 18px 30px rgba(91, 33, 182, 0.15);
+  box-shadow: 0 18px 30px rgba(20, 80, 75, 0.15);
 }
 
 .reveal {
@@ -140,7 +140,7 @@ body {
   background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
   color: #fff;
   font-size: 20px;
-  box-shadow: 0 10px 24px rgba(219, 39, 119, 0.4);
+  box-shadow: 0 10px 24px rgba(212, 98, 59, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -151,9 +151,9 @@ body {
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.6); }
-  70% { box-shadow: 0 0 0 20px rgba(219, 39, 119, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(212, 98, 59, 0.6); }
+  70% { box-shadow: 0 0 0 20px rgba(212, 98, 59, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(212, 98, 59, 0); }
 }
 
 .pulse-outline {
@@ -161,9 +161,9 @@ body {
 }
 
 @keyframes pulseOutline {
-  0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.5); }
-  70% { box-shadow: 0 0 0 14px rgba(219, 39, 119, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(212, 98, 59, 0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(212, 98, 59, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(212, 98, 59, 0); }
 }
 
 .text-accent {

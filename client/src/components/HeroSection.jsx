@@ -14,8 +14,8 @@ function HeroSection({ heroImage, onStartVoice, listening, hotelCount, cityCount
         paddingTop: NAV_HEIGHT + 48,
         minHeight: "100vh",
         backgroundImage: heroImage
-          ? `linear-gradient(180deg, rgba(30,27,75,0.55) 0%, rgba(30,27,75,0.35) 45%, rgba(30,27,75,0.9) 100%), url(${heroImage})`
-          : "linear-gradient(135deg, #1e1b4b, #5b21b6)",
+          ? `linear-gradient(180deg, rgba(11,46,44,0.55) 0%, rgba(11,46,44,0.35) 45%, rgba(11,46,44,0.9) 100%), url(${heroImage})`
+          : "linear-gradient(135deg, #0b2e2c, #14504b)",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
