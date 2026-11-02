@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { Booking, User, Hotel, RoomType, sequelize } = require("../models");
+const { Booking, User, Hotel, RoomType, Review, sequelize } = require("../models");
 const auth = require("../middleware/auth");
 const isAdmin = require("../middleware/isAdmin");
 const { validateStay } = require("../services/bookingDates");
@@ -297,7 +297,8 @@ router.get(
                         userId: req.user.id
                     },
 
-                    include: ROOM_SUMMARY,
+                    // The guest's review, if they wrote one (My Bookings shows it).
+                    include: [...ROOM_SUMMARY, { model: Review, attributes: ["id", "rating", "comment"] }],
 
                     order: [
                         ["createdAt", "DESC"]

@@ -71,6 +71,9 @@ app.use("/voice", voiceRouter);
 const hotelRouter = require("./routes/Hotel");
 app.use("/hotels", hotelRouter);
 
+app.use("/reviews", require("./routes/Review"));
+app.use("/stats", require("./routes/Stats"));
+
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   // Client mistakes (bad upload, malformed JSON) are safe to explain.
