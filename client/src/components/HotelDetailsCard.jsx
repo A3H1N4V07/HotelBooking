@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../api";
 import BookingFormModal from "./BookingFormModal";
 import RoomPicker from "./RoomPicker";
@@ -9,8 +9,10 @@ import { getSession } from "../auth";
 import { formatPrice } from "../utils/formatPrice";
 import { nightsBetween, formatDistance } from "../utils/stay";
 import { matchByName } from "../voice/matchName";
+import { NAV_HEIGHT } from "./Header";
+import { CheckIcon, MapPinIcon, PhoneIcon, StarIcon } from "./Icons";
 
-const LANDMARK_ICONS = { beach: "🏖️", centre: "🏙️", airport: "✈️", station: "🚉", attraction: "📍" };
+const LANDMARK_LABELS = { beach: "Beach", centre: "City centre", airport: "Airport", station: "Station", attraction: "Sight" };
 
 // A room is bookable for the current search if it fits the party and
 // (when availability is known) has a room left.
@@ -237,131 +239,172 @@ function HotelDetailsCard({ hotel }) {
   const noRoomFits = rooms.length > 0 && !rooms.some((room) => isBookable(room, guests));
 
   return (
-    <div className="container py-4">
-      <div className="card border-0 shadow-lg">
-        <div className="row g-0">
-          <div className="col-md-5">
-            <img
-              src={hotel.image}
-              alt={hotel.name}
-              className="img-fluid h-100"
-              style={{
-                objectFit: "cover",
-                borderRadius: "8px 0 0 8px",
-                minHeight: "320px",
-                width: "100%",
-              }}
-            />
+    <div>
+      <div
+        className="text-white position-relative"
+        style={{
+          marginTop: -NAV_HEIGHT,
+          paddingTop: NAV_HEIGHT + 96,
+          paddingBottom: 96,
+          backgroundImage: `linear-gradient(180deg, rgba(30,27,75,0.45), rgba(30,27,75,0.92)), url(${hotel.image})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="container">
+          <Link to="/hotels" className="text-white-50 text-decoration-none small d-inline-block mb-3">
+            ← All hotels
+          </Link>
+
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+            {hotel.category && <span className="badge rounded-pill bg-warning text-dark px-3 py-2">{hotel.category}</span>}
+            <span className="badge-floating d-inline-flex align-items-center gap-1 py-1">
+              <StarIcon size={14} className="text-warning" /> {hotel.rating}
+            </span>
           </div>
 
-          <div className="col-md-7">
-            <div className="card-body d-flex flex-column h-100">
-              <div className="d-flex justify-content-between align-items-start">
-                <h2 className="fw-bold mb-1">{hotel.name}</h2>
-                <span
-                  className="badge"
-                  style={{
-                    background: "linear-gradient(135deg, #F6B73C, #d99a1f)",
-                    color: "#0B1F3A",
-                  }}
-                >
-                  {hotel.category}
-                </span>
-              </div>
+          <h1 className="display-5 fw-bold mb-2">{hotel.name}</h1>
 
-              <p className="text-muted mb-2">{hotel.address}</p>
-
-              <p className="mb-2">
-                ⭐ {hotel.rating} &nbsp;|&nbsp; 📍 {hotel.city}
-                {hotel.phone && <> &nbsp;|&nbsp; 📞 {hotel.phone}</>}
-              </p>
-
-              <p className="text-secondary">{hotel.description}</p>
-
-              {hotel.amenities?.length > 0 && (
-                <div className="d-flex flex-wrap gap-2 mb-3">
-                  {hotel.amenities.map((amenity) => (
-                    <span key={amenity.code} className="badge rounded-pill text-bg-light border">
-                      {amenity.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {hotel.nearby?.length > 0 && (
-                <div className="small text-muted mb-3">
-                  {hotel.nearby.slice(0, 4).map((place) => (
-                    <div key={place.name}>
-                      {LANDMARK_ICONS[place.type] || "📍"} {formatDistance(place.km)} to {place.name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="d-flex flex-wrap gap-3 text-white text-opacity-75">
+            <span className="d-inline-flex align-items-center gap-1">
+              <MapPinIcon size={16} /> {hotel.address || hotel.city}
+            </span>
+            {hotel.phone && (
+              <span className="d-inline-flex align-items-center gap-1">
+                <PhoneIcon size={16} /> {hotel.phone}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="card border-0 shadow-sm mt-4 p-4">
-        <h4 className="fw-bold mb-3">Choose your room</h4>
+      <div className="container position-relative pb-5" style={{ marginTop: -56 }}>
+        <div className="row g-4">
+          <div className="col-lg-7">
+            <div className="card border-0 rounded-4 shadow-sm p-4 mb-4">
+              <h5 className="fw-bold mb-3">About this hotel</h5>
+              <p className="text-secondary mb-0">{hotel.description}</p>
+            </div>
 
-        <div className="row g-2 mb-3">
-          <div className="col-sm-4">
-            <label className="form-label small">Check In</label>
-            <input type="date" className="form-control" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
-          </div>
-          <div className="col-sm-4">
-            <label className="form-label small">Check Out</label>
-            <input type="date" className="form-control" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} />
-          </div>
-          <div className="col-sm-4">
-            <label className="form-label small">Guests</label>
-            <input type="number" min="1" className="form-control" value={guests} onChange={(e) => setGuests(e.target.value)} />
-          </div>
-        </div>
+            {hotel.amenities?.length > 0 && (
+              <div className="card border-0 rounded-4 shadow-sm p-4 mb-4">
+                <h5 className="fw-bold mb-3">Amenities</h5>
+                <div className="row g-2">
+                  {hotel.amenities.map((amenity) => (
+                    <div key={amenity.code} className="col-6 col-md-4 d-flex align-items-center gap-2 small">
+                      <span
+                        className="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: 26, height: 26 }}
+                      >
+                        <CheckIcon size={14} />
+                      </span>
+                      {amenity.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {nights === 0 && (
-          <p className="small text-muted">Pick your dates to see prices for your stay and how many rooms are left.</p>
-        )}
-
-        {rooms.length > 0 ? (
-          <RoomPicker
-            rooms={rooms}
-            nights={nights}
-            guests={guests}
-            selectedId={selectedRoomId}
-            onSelect={selectRoom}
-            loading={roomsLoading}
-          />
-        ) : (
-          <p className="text-muted">This hotel has no rooms set up yet.</p>
-        )}
-
-        {noRoomFits && (
-          <div className="alert alert-warning mt-3 mb-0 py-2">
-            No room fits {Number(guests) || 1} guests{nights > 0 ? " for these dates" : ""}. Try other dates or fewer guests.
-          </div>
-        )}
-
-        <div className="d-flex justify-content-between align-items-center mt-4">
-          <div>
-            <h3 className="fw-bold mb-0">
-              {formatPrice(listedPrice)} <small className="text-muted fs-6">/ night</small>
-            </h3>
-            {selectedRoom && nights > 0 && (
-              <small className="text-muted">
-                {selectedRoom.name} · {formatPrice(selectedRoom.pricePerNight * nights)} for {nights} night{nights > 1 ? "s" : ""}
-              </small>
+            {hotel.nearby?.length > 0 && (
+              <div className="card border-0 rounded-4 shadow-sm p-4">
+                <h5 className="fw-bold mb-3">What's nearby</h5>
+                <ul className="list-unstyled mb-0">
+                  {hotel.nearby.slice(0, 4).map((place, index) => (
+                    <li
+                      key={place.name}
+                      className={`d-flex justify-content-between align-items-center gap-3 py-2 ${index > 0 ? "border-top" : ""}`}
+                    >
+                      <span className="d-inline-flex align-items-center gap-2">
+                        <MapPinIcon size={16} className="text-warning" />
+                        {place.name}
+                        {LANDMARK_LABELS[place.type] && (
+                          <span className="badge rounded-pill text-bg-light border fw-normal text-secondary">
+                            {LANDMARK_LABELS[place.type]}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-secondary small text-nowrap">{formatDistance(place.km)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
-          <button
-            className="btn btn-gold btn-lg"
-            onClick={openBookingForm}
-            disabled={booking || noRoomFits || rooms.length === 0}
-          >
-            {booking ? "Booking..." : "Book Now"}
-          </button>
+          <div className="col-lg-5">
+            <div className="card border-0 rounded-4 shadow-lg p-4 sticky-lg-top" style={{ top: NAV_HEIGHT + 16, zIndex: 1 }}>
+              <div className="d-flex justify-content-between align-items-baseline mb-3">
+                <h4 className="fw-bold mb-0">Choose your room</h4>
+                <span className="text-secondary small">
+                  from <span className="fw-bold text-dark fs-5">{formatPrice(listedPrice)}</span> / night
+                </span>
+              </div>
+
+              <div className="row g-2 mb-3">
+                <div className="col-6">
+                  <label className="form-label small fw-semibold text-secondary mb-1" htmlFor="check-in">Check in</label>
+                  <input id="check-in" type="date" className="form-control" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} />
+                </div>
+                <div className="col-6">
+                  <label className="form-label small fw-semibold text-secondary mb-1" htmlFor="check-out">Check out</label>
+                  <input id="check-out" type="date" className="form-control" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} />
+                </div>
+                <div className="col-12">
+                  <label className="form-label small fw-semibold text-secondary mb-1" htmlFor="guests">Guests</label>
+                  <input id="guests" type="number" min="1" className="form-control" value={guests} onChange={(e) => setGuests(e.target.value)} />
+                </div>
+              </div>
+
+              {nights === 0 && (
+                <p className="small text-secondary">Pick your dates to see prices for your stay and how many rooms are left.</p>
+              )}
+
+              {rooms.length > 0 ? (
+                <RoomPicker
+                  rooms={rooms}
+                  nights={nights}
+                  guests={guests}
+                  selectedId={selectedRoomId}
+                  onSelect={selectRoom}
+                  loading={roomsLoading}
+                />
+              ) : (
+                <p className="text-secondary">This hotel has no rooms set up yet.</p>
+              )}
+
+              {noRoomFits && (
+                <div className="alert alert-warning rounded-3 mt-3 mb-0 py-2 small">
+                  No room fits {Number(guests) || 1} guests{nights > 0 ? " for these dates" : ""}. Try other dates or fewer guests.
+                </div>
+              )}
+
+              <div className="border-top mt-4 pt-3 d-flex justify-content-between align-items-center gap-3">
+                <div>
+                  {selectedRoom && nights > 0 ? (
+                    <>
+                      <div className="fw-bold fs-4">{formatPrice(selectedRoom.pricePerNight * nights)}</div>
+                      <small className="text-secondary">
+                        {selectedRoom.name} · {nights} night{nights > 1 ? "s" : ""}
+                      </small>
+                    </>
+                  ) : (
+                    <>
+                      <div className="fw-bold fs-4">{formatPrice(listedPrice)}</div>
+                      <small className="text-secondary">per night</small>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  className="btn btn-accent btn-lg rounded-pill px-4"
+                  onClick={openBookingForm}
+                  disabled={booking || noRoomFits || rooms.length === 0}
+                >
+                  {booking ? "Booking..." : "Book Now"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

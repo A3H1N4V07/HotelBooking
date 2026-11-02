@@ -89,8 +89,8 @@ function AdminHotelRooms({ hotelId, onChanged }) {
   );
 
   return (
-    <div className="card border-0 shadow-sm p-4 mb-4">
-      <h4 className="mb-3">Rooms &amp; amenities</h4>
+    <div className="card border-0 rounded-4 shadow-sm p-4 mb-4">
+      <h5 className="fw-bold mb-3">Rooms &amp; amenities</h5>
 
       {message && <div className={`alert alert-${message.type} py-2`}>{message.text}</div>}
 
@@ -171,7 +171,7 @@ function AdminHotelRooms({ hotelId, onChanged }) {
           <label className="form-label small mb-0">Rooms</label>
           {numberInput(newRoom.totalRooms, (v) => setNewRoom({ ...newRoom, totalRooms: v }), 0, 80)}
         </div>
-        <button type="submit" className="btn btn-sm btn-gold" disabled={busy}>Add room type</button>
+        <button type="submit" className="btn btn-sm btn-accent rounded-pill px-3" disabled={busy}>Add room type</button>
       </form>
     </div>
   );

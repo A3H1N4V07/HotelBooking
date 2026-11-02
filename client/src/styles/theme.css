@@ -1,32 +1,89 @@
 :root {
-  --navy: #0B1F3A;
-  --navy-light: #14315c;
-  --royal-blue: #1E3A8A;
-  --gold: #F6B73C;
-  --gold-dark: #d99a1f;
-  --soft-gray: #F5F6F8;
+  /* Dark pair: deep indigo into violet, for headers, hero, footer, glass. */
+  --dark-1: #1e1b4b;
+  --dark-2: #5b21b6;
+  /* Accent pair: orange into pink, for buttons, highlights and the mic. */
+  --accent-1: #f97316;
+  --accent-2: #db2777;
+  --accent-light: #fdba74;
+  /* Light pair: lavender into blush, for page backgrounds and soft cards. */
+  --light-1: #f5f3ff;
+  --light-2: #fdf2f8;
+
+  /* Bootstrap's own colors, retinted to match. */
+  --bs-warning-rgb: 249, 115, 22;
+  --bs-info-rgb: 236, 72, 153;
+  --bs-dark-rgb: 30, 27, 75;
+  --bs-link-color: #6d28d9;
+  --bs-link-hover-color: #db2777;
 }
 
 body {
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
-.gradient-navy {
-  background: linear-gradient(135deg, var(--navy), var(--royal-blue));
+.gradient-dark {
+  background: linear-gradient(135deg, var(--dark-1), var(--dark-2));
 }
 
-.btn-gold {
-  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+.gradient-light {
+  background: linear-gradient(180deg, var(--light-1), #fff 40%, var(--light-2));
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--accent-light), #f9a8d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
   border: none;
-  color: var(--navy);
+  color: #fff;
   font-weight: 600;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.btn-gold:hover {
+.btn-accent:hover,
+.btn-accent:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(246, 183, 60, 0.35);
-  color: var(--navy);
+  box-shadow: 0 10px 20px rgba(219, 39, 119, 0.35);
+  color: #fff;
+}
+
+.btn-dark {
+  --bs-btn-bg: var(--dark-1);
+  --bs-btn-border-color: var(--dark-1);
+  --bs-btn-hover-bg: var(--dark-2);
+  --bs-btn-hover-border-color: var(--dark-2);
+  --bs-btn-active-bg: var(--dark-2);
+  --bs-btn-active-border-color: var(--dark-2);
+}
+
+.btn-outline-dark {
+  --bs-btn-color: var(--dark-1);
+  --bs-btn-border-color: var(--dark-1);
+  --bs-btn-hover-bg: var(--dark-1);
+  --bs-btn-hover-border-color: var(--dark-1);
+  --bs-btn-active-bg: var(--dark-2);
+  --bs-btn-active-border-color: var(--dark-2);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.18);
+}
+
+.form-check-input:checked {
+  background-color: #7c3aed;
+  border-color: #7c3aed;
 }
 
 .btn-outline-glass {
@@ -51,7 +108,7 @@ body {
 }
 
 .glass-dark {
-  background: rgba(11, 31, 58, 0.75);
+  background: rgba(30, 27, 75, 0.72);
   backdrop-filter: blur(16px);
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -64,7 +121,7 @@ body {
 
 .hover-lift:hover {
   transform: translateY(-6px);
-  box-shadow: 0 18px 30px rgba(11, 31, 58, 0.15);
+  box-shadow: 0 18px 30px rgba(91, 33, 182, 0.15);
 }
 
 .reveal {
@@ -80,10 +137,10 @@ body {
 
 .mic-button {
   border: none;
-  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-  color: var(--navy);
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff;
   font-size: 20px;
-  box-shadow: 0 10px 24px rgba(246, 183, 60, 0.4);
+  box-shadow: 0 10px 24px rgba(219, 39, 119, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,9 +151,9 @@ body {
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(246, 183, 60, 0.6); }
-  70% { box-shadow: 0 0 0 20px rgba(246, 183, 60, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(246, 183, 60, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.6); }
+  70% { box-shadow: 0 0 0 20px rgba(219, 39, 119, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
 }
 
 .pulse-outline {
@@ -104,13 +161,13 @@ body {
 }
 
 @keyframes pulseOutline {
-  0% { box-shadow: 0 0 0 0 rgba(246, 183, 60, 0.5); }
-  70% { box-shadow: 0 0 0 14px rgba(246, 183, 60, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(246, 183, 60, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(219, 39, 119, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
 }
 
-.text-gold {
-  color: var(--gold);
+.text-accent {
+  color: var(--accent-light);
 }
 
 .badge-floating {

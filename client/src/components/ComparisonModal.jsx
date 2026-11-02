@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { StarIcon, CheckIcon } from "./Icons";
 import { formatPrice } from "../utils/formatPrice";
 import { formatDistance } from "../utils/stay";
 
@@ -27,14 +28,14 @@ function ComparisonModal({ rows, onClose, labels = {} }) {
   return (
     <div
       className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ background: "rgba(11,31,58,0.6)", zIndex: 1070 }}
+      style={{ background: "rgba(30,27,75,0.55)", backdropFilter: "blur(6px)", zIndex: 1070 }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Hotel comparison"
     >
       <div
-        className="card border-0 shadow-lg p-4"
+        className="card border-0 rounded-4 shadow-lg p-4"
         style={{ width: "min(860px, 94vw)", maxHeight: "86vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -44,7 +45,7 @@ function ComparisonModal({ rows, onClose, labels = {} }) {
         </div>
 
         <div className="table-responsive">
-          <table className="table align-middle mb-0">
+          <table className="table table-hover align-middle mb-0">
             <thead>
               <tr>
                 <th />
@@ -65,7 +66,7 @@ function ComparisonModal({ rows, onClose, labels = {} }) {
               <tr>
                 <th className="small text-muted">Rating</th>
                 {rows.map((r) => (
-                  <td key={r.hotelId} className={r.rating === bestRating ? "fw-bold text-success" : ""}>⭐ {r.rating}</td>
+                  <td key={r.hotelId} className={r.rating === bestRating ? "fw-bold text-success" : ""}><StarIcon size={14} className="text-warning" /> {r.rating}</td>
                 ))}
               </tr>
               <tr>
@@ -90,7 +91,7 @@ function ComparisonModal({ rows, onClose, labels = {} }) {
                 <tr key={code}>
                   <th className="small text-muted">{labels[code] || code}</th>
                   {rows.map((r) => (
-                    <td key={r.hotelId}>{r.amenities.includes(code) ? "✓" : <span className="text-muted">—</span>}</td>
+                    <td key={r.hotelId}>{r.amenities.includes(code) ? <CheckIcon size={16} className="text-success" /> : <span className="text-muted">—</span>}</td>
                   ))}
                 </tr>
               ))}
@@ -106,7 +107,7 @@ function ComparisonModal({ rows, onClose, labels = {} }) {
                 <th />
                 {rows.map((r) => (
                   <td key={r.hotelId}>
-                    <button type="button" className="btn btn-sm btn-gold" onClick={() => open(r.hotelId)}>
+                    <button type="button" className="btn btn-sm btn-accent rounded-pill px-3" onClick={() => open(r.hotelId)}>
                       View hotel
                     </button>
                   </td>

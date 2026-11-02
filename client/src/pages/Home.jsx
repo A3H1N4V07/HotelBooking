@@ -8,7 +8,6 @@ import TopHotelsSection from "../components/TopHotelsSection";
 import WhyChooseSection from "../components/WhyChooseSection";
 import StatsSection from "../components/StatsSection";
 import TestimonialsSection from "../components/TestimonialsSection";
-import Footer from "../components/Footer";
 import useReveal from "../hooks/useReveal";
 import useVoicePageContext from "../hooks/useVoicePageContext";
 import { useVoice } from "../context/VoiceContext";
@@ -114,29 +113,29 @@ function Home() {
         heroImage={heroImage}
         onStartVoice={toggleListening}
         listening={listening}
-      />
+        hotelCount={hotelCount}
+        cityCount={cityCount}
+      >
+        <SearchCard
+          destination={draft.city}
+          setDestination={(city) => updateDraft({ city })}
+          checkInDate={draft.checkIn}
+          setCheckInDate={(checkIn) => updateDraft({ checkIn })}
+          checkOutDate={draft.checkOut}
+          setCheckOutDate={(checkOut) => updateDraft({ checkOut })}
+          guests={draft.guests}
+          setGuests={(guests) => updateDraft({ guests })}
+          onSubmit={handleSubmit}
+          onClear={hasTrip ? clearTrip : undefined}
+          onMicClick={toggleListening}
+          listening={listening}
+          browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
+        />
 
-      <SearchCard
-        destination={draft.city}
-        setDestination={(city) => updateDraft({ city })}
-        checkInDate={draft.checkIn}
-        setCheckInDate={(checkIn) => updateDraft({ checkIn })}
-        checkOutDate={draft.checkOut}
-        setCheckOutDate={(checkOut) => updateDraft({ checkOut })}
-        guests={draft.guests}
-        setGuests={(guests) => updateDraft({ guests })}
-        onSubmit={handleSubmit}
-        onClear={hasTrip ? clearTrip : undefined}
-        onMicClick={toggleListening}
-        listening={listening}
-        browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
-      />
-
-      {listening && (
-        <div className="container mt-2">
-          <p className="text-muted text-center small">Heard: {transcript}</p>
-        </div>
-      )}
+        {listening && transcript && (
+          <p className="text-white-50 text-center small mt-3 mb-0">Heard: {transcript}</p>
+        )}
+      </HeroSection>
 
       {allHotels.length > 0 && (
         <>
@@ -148,7 +147,6 @@ function Home() {
         </>
       )}
 
-      <Footer />
     </div>
   );
 }

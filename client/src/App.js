@@ -16,59 +16,65 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminHotels from "./pages/AdminHotels";
 import { VoiceProvider } from "./context/VoiceContext";
 import VoiceAssistant from "./components/VoiceAssistant";
+import Footer from "./components/Footer";
 
 function App() {
   return (
     <Router>
       <VoiceProvider>
-        <Header />
-        <Routes>
-          <Route path="/" element={<Home />} />
+        <div className="d-flex flex-column min-vh-100 gradient-light">
+          <Header />
+          <main className="flex-grow-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
 
-          <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<Login />} />
 
-          <Route path="/register" element={<Register />} />
+              <Route path="/register" element={<Register />} />
 
-          <Route path="/hotels" element={<Hotels />} />
+              <Route path="/hotels" element={<Hotels />} />
 
-          <Route path="/hotels/:id" element={<HotelDetail />} />
+              <Route path="/hotels/:id" element={<HotelDetail />} />
 
-          <Route
-            path="/payment/:bookingId"
-            element={
-              <ProtectedRoute>
-                <Payment />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/payment/:bookingId"
+                element={
+                  <ProtectedRoute>
+                    <Payment />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/my-bookings"
-            element={
-              <ProtectedRoute>
-                <MyBookings />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/my-bookings"
+                element={
+                  <ProtectedRoute>
+                    <MyBookings />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/admin/hotels"
-            element={
-              <ProtectedRoute adminOnly>
-                <AdminHotels />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+              <Route
+                path="/admin/hotels"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminHotels />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
 
         <VoiceAssistant />
       </VoiceProvider>

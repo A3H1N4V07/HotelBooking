@@ -38,7 +38,7 @@ function CountUp({ end, suffix = "", duration = 1500 }) {
   }, [end, duration]);
 
   return (
-    <h2 className="fw-bold display-5 text-gold mb-0" ref={ref}>
+    <h2 className="fw-bold display-6 text-warning mb-0" ref={ref}>
       {value}
       {suffix}
     </h2>
@@ -54,18 +54,18 @@ function StatsSection({ hotelCount, cityCount }) {
   ];
 
   return (
-    <div className="gradient-navy py-5">
-      <div className="container reveal">
-        <div className="row text-center text-white g-4">
+    <section className="container pb-5 reveal">
+      <div className="bg-white rounded-4 shadow-sm p-4 p-lg-5">
+        <div className="row text-center g-4">
           {stats.map((stat) => (
-            <div className="col-md-3 col-sm-6" key={stat.label}>
+            <div className="col-md-3 col-6" key={stat.label}>
               <CountUp end={stat.value} suffix={stat.suffix} />
-              <p className="mb-0 mt-2">{stat.label}</p>
+              <p className="mb-0 mt-1 text-secondary small text-uppercase fw-semibold">{stat.label}</p>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

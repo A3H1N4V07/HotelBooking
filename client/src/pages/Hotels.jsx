@@ -11,6 +11,9 @@ import ErrorComponent from "../components/ErrorComponent";
 import useAmenities from "../hooks/useAmenities";
 import { formatDistance, nightsBetween } from "../utils/stay";
 import { matchByName } from "../voice/matchName";
+import PageHeader from "../components/PageHeader";
+import { NAV_HEIGHT } from "../components/Header";
+import { CheckIcon, MicIcon, SearchIcon, SparkleIcon, StopIcon } from "../components/Icons";
 
 const CATEGORIES = ["Budget", "Business", "Family", "Luxury"];
 
@@ -221,6 +224,8 @@ function Hotels() {
   };
 
   const displayedHotels = hotelsBigData;
+  // Small screens: filters open on demand.
+  const [showFilters, setShowFilters] = useState(false);
 
   useVoicePageContext({
     describe: () => ({ page: "hotels", loading, results: displayedHotels }),
@@ -254,211 +259,267 @@ function Hotels() {
     return <ErrorComponent />;
   }
 
+  const label = "form-label small fw-semibold text-secondary mb-1";
+
   return (
     <div>
-      <div className="gradient-navy text-white text-center py-5">
-        <div className="container">
-          <h1 className="fw-bold mb-1">
-            {firstName ? `Welcome ${firstName}` : "Find Your Perfect Stay"}
-          </h1>
-          <p className="mb-0 text-white-50">
-            {location ? `Hotels in ${location}` : "Search hotels across India"}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow={firstName ? `Welcome back, ${firstName}` : "Find your stay"}
+        title={location ? `Hotels in ${location}` : "Find your perfect stay"}
+        subtitle={
+          location
+            ? `${displayedHotels.length} hotel${displayedHotels.length === 1 ? "" : "s"}${filtersActive ? " match your filters" : " to choose from"}`
+            : "Search hotels across India, or just ask"
+        }
+        image={displayedHotels[0]?.image}
+        overlap
+      />
 
-      <div className="container" style={{ marginTop: "-32px", position: "relative", zIndex: 5 }}>
-        <div className="glass-card shadow-lg p-3 mb-4">
-          <form
-            onSubmit={handleAiRecommend}
-            className="d-flex flex-wrap gap-2 justify-content-center align-items-center"
-          >
-            <input
-              type="text"
-              className="form-control"
-              style={{ maxWidth: "360px" }}
-              placeholder='Try: "Recommend a budget hotel in Goa"'
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-            />
-            <button type="submit" className="btn btn-gold" disabled={aiLoading}>
-              {aiLoading ? "Thinking..." : "Ask AI"}
-            </button>
-            {filtersActive && (
-              <button
-                type="button"
-                className="btn btn-outline-dark"
-                onClick={clearFilters}
-              >
-                Clear filters
+      <div className="container position-relative" style={{ marginTop: -56 }}>
+        <div className="glass-card shadow-lg p-3 p-lg-4 mb-4">
+          <form onSubmit={handleAiRecommend} className="d-flex flex-column flex-md-row gap-2">
+            <div className="input-group input-group-lg flex-grow-1 shadow-sm rounded-3 overflow-hidden">
+              <span className="input-group-text bg-white border-0 text-warning">
+                <SparkleIcon size={20} />
+              </span>
+              <input
+                type="text"
+                className="form-control border-0 fs-6 shadow-none"
+                placeholder='Ask AI: "Recommend a budget hotel in Goa with a pool"'
+                aria-label="Ask AI for a recommendation"
+                value={aiQuery}
+                onChange={(e) => setAiQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="d-flex gap-2">
+              <button type="submit" className="btn btn-accent btn-lg rounded-pill px-4 flex-grow-1 fs-6 text-nowrap" disabled={aiLoading}>
+                {aiLoading ? "Thinking..." : "Ask AI"}
               </button>
-            )}
+
+              {browserSupportsSpeechRecognition && (
+                <button
+                  type="button"
+                  className={`btn rounded-circle p-0 flex-shrink-0 d-inline-flex align-items-center justify-content-center ${listening ? "mic-button listening" : "btn-dark"}`}
+                  style={{ width: 48, height: 48 }}
+                  onClick={toggleListening}
+                  title={listening ? "Stop voice search" : "Search by voice"}
+                  aria-label={listening ? "Stop voice search" : "Search by voice"}
+                >
+                  {listening ? <StopIcon size={18} /> : <MicIcon size={20} />}
+                </button>
+              )}
+            </div>
           </form>
 
-          {aiError && <p className="text-danger text-center mt-2 mb-0">{aiError}</p>}
+          {aiError && <p className="text-danger small mt-2 mb-0">{aiError}</p>}
 
           {aiFilters && (
-            <p className="text-center text-muted mt-2 mb-0">
-              Understood as: {describeAiFilters(aiFilters, amenityLabels)}
+            <p className="text-secondary small mt-2 mb-0">
+              Understood as: <span className="fw-semibold">{describeAiFilters(aiFilters, amenityLabels)}</span>
             </p>
           )}
+
+          {listening && transcript && <p className="text-secondary small mt-2 mb-0">Heard: {transcript}</p>}
         </div>
       </div>
 
-      <div className="container">
-        <div className="d-flex flex-wrap gap-2 justify-content-center align-items-center mb-3">
-          <form onSubmit={handleSearchSubmit} className="d-flex gap-2">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search city..."
-              value={cityInput}
-              onChange={(e) => setCityInput(e.target.value)}
-            />
-            <button type="submit" className="btn btn-dark">
-              Search
+      <div className="container pb-5">
+        <div className="row g-4">
+          <aside className="col-lg-3">
+            <button
+              type="button"
+              className="btn btn-outline-dark rounded-pill w-100 d-lg-none"
+              onClick={() => setShowFilters((open) => !open)}
+              aria-expanded={showFilters}
+            >
+              {showFilters ? "Hide filters" : `Filters${filtersActive ? " (on)" : ""}`}
             </button>
-          </form>
 
-          <select
-            className="form-select w-auto"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">All Categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            <div className={`${showFilters ? "mt-3" : "d-none"} d-lg-block sticky-lg-top`} style={{ top: NAV_HEIGHT + 16, zIndex: 1 }}>
+              <div className="card border-0 rounded-4 shadow-sm p-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="fw-bold mb-0">Filters</h6>
+                  {filtersActive && (
+                    <button type="button" className="btn btn-link btn-sm p-0 text-decoration-none" onClick={clearFilters}>
+                      Clear all
+                    </button>
+                  )}
+                </div>
 
-          <select
-            className="form-select w-auto"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="">Sort By</option>
-            <option value="price">Price</option>
-            <option value="rating">Rating</option>
-            <option value="distance" disabled={!near}>Distance{near ? "" : " (pick a place)"}</option>
-          </select>
+                <form onSubmit={handleSearchSubmit} className="mb-3">
+                  <label className={label} htmlFor="city-search">City</label>
+                  <div className="input-group">
+                    <input
+                      id="city-search"
+                      type="text"
+                      className="form-control"
+                      placeholder="Search city..."
+                      value={cityInput}
+                      onChange={(e) => setCityInput(e.target.value)}
+                    />
+                    <button type="submit" className="btn btn-dark" aria-label="Search city">
+                      <SearchIcon size={16} />
+                    </button>
+                  </div>
+                </form>
 
-          <select
-            className="form-select w-auto"
-            value={order}
-            onChange={(e) => setOrder(e.target.value)}
-            disabled={!sortBy}
-          >
-            <option value="asc">{sortBy === "distance" ? "Closest first" : "Low to High"}</option>
-            <option value="desc">{sortBy === "distance" ? "Farthest first" : "High to Low"}</option>
-          </select>
-        </div>
+                <div className="mb-3">
+                  <label className={label} htmlFor="category">Category</label>
+                  <select id="category" className="form-select" value={category} onChange={(e) => setCategory(e.target.value)}>
+                    <option value="">All categories</option>
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
 
-        <div className="d-flex flex-wrap gap-2 justify-content-center align-items-center mb-2">
-          <select className="form-select w-auto" value={near} onChange={(e) => handleNearChange(e.target.value)}>
-            <option value="">Near: anywhere</option>
-            {NEAR_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>Near: {o.label}</option>
-            ))}
-          </select>
+                <div className="mb-3">
+                  <label className={label} htmlFor="sort">Sort by</label>
+                  <div className="d-flex flex-column gap-2">
+                    <select id="sort" className="form-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                      <option value="">Recommended</option>
+                      <option value="price">Price</option>
+                      <option value="rating">Rating</option>
+                      <option value="distance" disabled={!near}>Distance{near ? "" : " (pick a place)"}</option>
+                    </select>
+                    <select
+                      className="form-select"
+                      aria-label="Sort order"
+                      value={order}
+                      onChange={(e) => setOrder(e.target.value)}
+                      disabled={!sortBy}
+                    >
+                      <option value="asc">{sortBy === "distance" ? "Closest" : "Low to high"}</option>
+                      <option value="desc">{sortBy === "distance" ? "Farthest" : "High to low"}</option>
+                    </select>
+                  </div>
+                </div>
 
-          <input
-            type="number"
-            min="1"
-            className="form-control w-auto"
-            style={{ maxWidth: 170 }}
-            placeholder="Max ₹ per night"
-            value={maxPriceInput}
-            onChange={(e) => setMaxPriceInput(e.target.value)}
-            onBlur={commitMaxPrice}
-            onKeyDown={(e) => e.key === "Enter" && commitMaxPrice()}
-          />
+                <div className="mb-3">
+                  <label className={label} htmlFor="near">Near</label>
+                  <select id="near" className="form-select" value={near} onChange={(e) => handleNearChange(e.target.value)}>
+                    <option value="">Anywhere</option>
+                    {NEAR_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-          <input
-            type="number"
-            min="1"
-            max="20"
-            className="form-control w-auto"
-            style={{ maxWidth: 110 }}
-            placeholder="Guests"
-            value={guestsFilter}
-            onChange={(e) => setGuestsFilter(e.target.value)}
-          />
-        </div>
+                <div className="row g-2 mb-3">
+                  <div className="col-7">
+                    <label className={label} htmlFor="max-price">Max ₹ / night</label>
+                    <input
+                      id="max-price"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      placeholder="Any"
+                      value={maxPriceInput}
+                      onChange={(e) => setMaxPriceInput(e.target.value)}
+                      onBlur={commitMaxPrice}
+                      onKeyDown={(e) => e.key === "Enter" && commitMaxPrice()}
+                    />
+                  </div>
+                  <div className="col-5">
+                    <label className={label} htmlFor="guests-filter">Guests</label>
+                    <input
+                      id="guests-filter"
+                      type="number"
+                      min="1"
+                      max="20"
+                      className="form-control"
+                      placeholder="Any"
+                      value={guestsFilter}
+                      onChange={(e) => setGuestsFilter(e.target.value)}
+                    />
+                  </div>
+                </div>
 
-        <div className="d-flex flex-wrap gap-2 justify-content-center mb-3">
-          {amenityOptions
-            .filter((a) => FILTER_AMENITIES.includes(a.code))
-            .map((a) => {
-              const active = amenityFilter.includes(a.code);
-              return (
-                <button
-                  key={a.code}
-                  type="button"
-                  className={`btn btn-sm rounded-pill ${active ? "btn-dark" : "btn-outline-secondary"}`}
-                  onClick={() => toggleAmenity(a.code)}
-                  aria-pressed={active}
-                >
-                  {active ? "✓ " : ""}{a.label}
-                </button>
-              );
-            })}
-        </div>
+                <div>
+                  <span className={`${label} d-block`}>Amenities</span>
+                  <div className="d-flex flex-wrap gap-2">
+                    {amenityOptions
+                      .filter((a) => FILTER_AMENITIES.includes(a.code))
+                      .map((a) => {
+                        const active = amenityFilter.includes(a.code);
+                        return (
+                          <button
+                            key={a.code}
+                            type="button"
+                            className={`btn btn-sm rounded-pill d-inline-flex align-items-center gap-1 ${active ? "btn-dark" : "btn-outline-secondary"}`}
+                            onClick={() => toggleAmenity(a.code)}
+                            aria-pressed={active}
+                          >
+                            {active && <CheckIcon size={14} />}
+                            {a.label}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
 
-        {searchError && <p className="text-danger text-center">{searchError}</p>}
-        {loading && <p className="text-muted text-center small">Updating…</p>}
+          <section className="col-lg-9">
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <span className="text-secondary small">
+                {loading ? "Updating…" : location ? `${displayedHotels.length} result${displayedHotels.length === 1 ? "" : "s"}` : ""}
+              </span>
+              {browserSupportsSpeechRecognition && (
+                <span className="text-secondary small d-none d-md-inline">
+                  Try saying "with a pool", "under 5000" or "book the first one"
+                </span>
+              )}
+            </div>
 
-        <div className="d-flex flex-column align-items-center gap-1 mb-4">
-          {browserSupportsSpeechRecognition ? (
-            <>
-              <button
-                type="button"
-                className={`btn btn-sm ${listening ? "mic-button listening text-white" : "btn-outline-dark"}`}
-                onClick={toggleListening}
-              >
-                {listening ? "🛑 Stop Voice Search" : "🎤 Start Voice Search"}
-              </button>
+            {searchError && <div className="alert alert-danger rounded-4">{searchError}</div>}
 
-              <small className="text-muted text-center" style={{ maxWidth: 360 }}>
-                Try: "With a pool", "Under 5000", "Near the beach", "Book the first one", "What's next?"
-              </small>
-
-              {listening && <small>Heard: {transcript}</small>}
-            </>
-          ) : (
-            <small className="text-muted">Voice search isn't supported in this browser.</small>
-          )}
-        </div>
-
-        <div className="row pb-5">
-          {displayedHotels.length > 0 ? (
-            displayedHotels.map((hotel) => (
-              <HotelCard
-                key={hotel.id}
-                id={hotel.id}
-                name={hotel.name}
-                img={hotel.image}
-                highlighted={highlightIds.includes(hotel.id)}
-                reviews={Math.floor(hotel.rating * 100)}
-                price={`from ${formatPrice(hotel.fromPrice ?? hotel.price)}`}
-                rating={hotel.rating}
-                distance={hotel.nearest && `${formatDistance(hotel.nearest.km)} to ${hotel.nearest.name}`}
-                amenities={(hotel.amenities || [])
-                  .filter((code) => !["wifi", "ac"].includes(code) || amenityFilter.includes(code))
-                  // Amenities the user filtered for come first.
-                  .sort((a, b) => amenityFilter.includes(b) - amenityFilter.includes(a))
-                  .slice(0, 3)
-                  .map((code) => amenityLabels[code] || code)}
-              />
-            ))
-          ) : (
-            <h2 className="text-center mt-5">
-              {!location
-                ? "Tell me a city to start"
-                : filtersActive
-                  ? `No hotels in ${location} match these filters`
-                  : `No hotels found in ${location}`}
-            </h2>
-          )}
+            {displayedHotels.length > 0 ? (
+              <div className="row g-4">
+                {displayedHotels.map((hotel) => (
+                  <HotelCard
+                    key={hotel.id}
+                    id={hotel.id}
+                    name={hotel.name}
+                    img={hotel.image}
+                    category={hotel.category}
+                    highlighted={highlightIds.includes(hotel.id)}
+                    price={`from ${formatPrice(hotel.fromPrice ?? hotel.price)}`}
+                    rating={hotel.rating}
+                    city={hotel.city}
+                    distance={hotel.nearest && `${formatDistance(hotel.nearest.km)} to ${hotel.nearest.name}`}
+                    amenities={(hotel.amenities || [])
+                      .filter((code) => !["wifi", "ac"].includes(code) || amenityFilter.includes(code))
+                      // Amenities the user filtered for come first.
+                      .sort((a, b) => amenityFilter.includes(b) - amenityFilter.includes(a))
+                      .slice(0, 3)
+                      .map((code) => amenityLabels[code] || code)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="card border-0 rounded-4 shadow-sm text-center p-5">
+                <div className="text-warning mb-3"><SearchIcon size={40} /></div>
+                <h4 className="fw-bold">
+                  {!location
+                    ? "Tell me a city to start"
+                    : filtersActive
+                      ? `No hotels in ${location} match these filters`
+                      : `No hotels found in ${location}`}
+                </h4>
+                <p className="text-secondary mb-0">
+                  {filtersActive ? "Try removing a filter." : "Search a city in the filters, or ask the AI above."}
+                </p>
+                {filtersActive && (
+                  <div className="mt-3">
+                    <button type="button" className="btn btn-dark rounded-pill px-4" onClick={clearFilters}>Clear filters</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </div>

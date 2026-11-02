@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { MapPinIcon, PhoneIcon, SendIcon } from "./Icons";
+
+const LINK = "text-white-50 text-decoration-none";
 
 function Footer() {
   const [email, setEmail] = useState("");
@@ -13,67 +16,64 @@ function Footer() {
   };
 
   return (
-    <footer id="footer" className="gradient-navy text-white pt-5 pb-4 mt-5">
+    <footer id="footer" className="gradient-dark text-white pt-5 pb-4 mt-5">
       <div className="container">
-        <div className="row g-4">
-          <div className="col-md-3">
+        <div className="row g-4 pb-4">
+          <div className="col-lg-4">
             <h4 className="fw-bold mb-3">
-              Echo<span className="text-gold">Stay</span>
+              Echo<span className="text-accent">Stay</span>
             </h4>
-            <p className="text-white-50 small">
-              Discover premium hotels with the power of AI & voice.
+            <p className="text-white-50 small mb-0" style={{ maxWidth: 320 }}>
+              Hotel booking you can talk to. Search, compare and book by voice, or the usual way.
             </p>
           </div>
 
-          <div className="col-md-3">
-            <h6 className="fw-bold mb-3">Quick Links</h6>
-            <ul className="list-unstyled small">
-              <li className="mb-2"><Link className="text-white-50 text-decoration-none" to="/">Home</Link></li>
-              <li className="mb-2"><Link className="text-white-50 text-decoration-none" to="/hotels">Hotels</Link></li>
-              <li className="mb-2"><Link className="text-white-50 text-decoration-none" to="/#destinations">Explore</Link></li>
-              <li className="mb-2"><Link className="text-white-50 text-decoration-none" to="/#why-us">About</Link></li>
+          <div className="col-6 col-lg-2">
+            <h6 className="fw-bold mb-3 text-uppercase small text-accent">Explore</h6>
+            <ul className="list-unstyled small d-flex flex-column gap-2 mb-0">
+              <li><Link className={LINK} to="/">Home</Link></li>
+              <li><Link className={LINK} to="/hotels">Hotels</Link></li>
+              <li><Link className={LINK} to="/#destinations">Destinations</Link></li>
+              <li><Link className={LINK} to="/#why-us">About</Link></li>
             </ul>
           </div>
 
-          <div className="col-md-3">
-            <h6 className="fw-bold mb-3">Contact</h6>
-            <ul className="list-unstyled small text-white-50">
-              <li className="mb-2">support@echostay.com</li>
-              <li className="mb-2">+91 98765 43210</li>
-              <li className="mb-2">Bengaluru, India</li>
+          <div className="col-6 col-lg-3">
+            <h6 className="fw-bold mb-3 text-uppercase small text-accent">Contact</h6>
+            <ul className="list-unstyled small text-white-50 d-flex flex-column gap-2 mb-0">
+              <li>support@echostay.com</li>
+              <li className="d-flex align-items-center gap-2"><PhoneIcon size={14} /> +91 98765 43210</li>
+              <li className="d-flex align-items-center gap-2"><MapPinIcon size={14} /> Bengaluru, India</li>
             </ul>
-            <div className="d-flex gap-3 mt-3">
-              <a href="#footer" className="text-white-50 fs-5">📘</a>
-              <a href="#footer" className="text-white-50 fs-5">📸</a>
-              <a href="#footer" className="text-white-50 fs-5">🐦</a>
-            </div>
           </div>
 
-          <div className="col-md-3">
-            <h6 className="fw-bold mb-3">Newsletter</h6>
+          <div className="col-lg-3">
+            <h6 className="fw-bold mb-3 text-uppercase small text-accent">Newsletter</h6>
 
             {subscribed ? (
-              <p className="text-gold small">Thanks for subscribing!</p>
+              <p className="small mb-0">Thanks for subscribing!</p>
             ) : (
-              <form onSubmit={handleSubscribe} className="d-flex gap-2">
+              <form onSubmit={handleSubscribe} className="bg-white d-flex gap-2 p-1 rounded-pill shadow-sm">
                 <input
                   type="email"
-                  className="form-control form-control-sm"
+                  className="form-control form-control-sm bg-transparent border-0 shadow-none ps-3"
                   placeholder="Your email"
+                  aria-label="Email for the newsletter"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <button type="submit" className="btn btn-gold btn-sm">Join</button>
+                <button type="submit" className="btn btn-accent btn-sm rounded-pill px-3" aria-label="Subscribe">
+                  <SendIcon size={16} />
+                </button>
               </form>
             )}
           </div>
         </div>
 
-        <hr className="border-secondary my-4" />
-
-        <p className="text-center text-white-50 small mb-0">
-          © {new Date().getFullYear()} EchoStay. All rights reserved.
-        </p>
+        <div className="border-top border-light border-opacity-10 pt-4 d-flex flex-wrap justify-content-between gap-2 small text-white-50">
+          <span>© {new Date().getFullYear()} EchoStay. All rights reserved.</span>
+          <span>Payments secured by Stripe</span>
+        </div>
       </div>
     </footer>
   );

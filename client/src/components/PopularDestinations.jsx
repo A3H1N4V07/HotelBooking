@@ -1,4 +1,5 @@
 import React from "react";
+import { ArrowRightIcon } from "./Icons";
 
 function PopularDestinations({ hotels, onSelectCity }) {
   const cityMap = {};
@@ -17,38 +18,41 @@ function PopularDestinations({ hotels, onSelectCity }) {
   }));
 
   return (
-    <div id="destinations" className="container py-5 reveal">
-      <h2 className="fw-bold mb-4 text-center">Popular Destinations</h2>
+    <section id="destinations" className="container py-5 reveal">
+      <div className="text-center mb-4">
+        <p className="text-uppercase small fw-bold text-warning mb-1">Where to next?</p>
+        <h2 className="fw-bold mb-0">Popular destinations</h2>
+      </div>
 
       <div className="row g-4">
         {destinations.map((dest) => (
-          <div className="col-md-3 col-sm-6" key={dest.city}>
-            <div
-              className="card border-0 shadow-sm hover-lift position-relative"
-              style={{ cursor: "pointer", overflow: "hidden" }}
+          <div className="col-lg-3 col-sm-6" key={dest.city}>
+            <button
+              type="button"
+              className="btn p-0 border-0 w-100 rounded-4 overflow-hidden shadow-sm hover-lift position-relative text-start"
               onClick={() => onSelectCity(dest.city)}
+              aria-label={`Hotels in ${dest.city}`}
             >
               <img
                 src={dest.image}
-                alt={dest.city}
-                className="card-img-top"
-                style={{ height: "180px", objectFit: "cover" }}
+                alt=""
+                className="w-100"
+                style={{ height: 280, objectFit: "cover" }}
               />
-              <div
-                className="position-absolute bottom-0 start-0 w-100 p-3"
-                style={{
-                  background: "linear-gradient(transparent, rgba(11,31,58,0.85))",
-                  color: "#fff",
-                }}
-              >
-                <h5 className="mb-0">{dest.city}</h5>
-                <small>{dest.count} hotels</small>
+              <div className="position-absolute bottom-0 start-0 end-0 p-3">
+                <div className="glass-dark px-3 py-2 d-flex justify-content-between align-items-center">
+                  <div>
+                    <div className="fw-bold">{dest.city}</div>
+                    <small className="text-white-50">{dest.count} hotel{dest.count === 1 ? "" : "s"}</small>
+                  </div>
+                  <ArrowRightIcon size={18} className="text-accent" />
+                </div>
               </div>
-            </div>
+            </button>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 

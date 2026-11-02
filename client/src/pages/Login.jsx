@@ -3,6 +3,7 @@ import api from "../api";
 import useVoicePageContext from "../hooks/useVoicePageContext";
 import { useVoice } from "../context/VoiceContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import AuthLayout from "../components/AuthLayout";
 
 function Login() {
 
@@ -48,12 +49,7 @@ function Login() {
     };
 
     return (
-        <div
-            className="d-flex align-items-center justify-content-center"
-            style={{ minHeight: "80vh", background: "#f4f6fb" }}
-        >
-            <div className="card shadow-lg border-0 p-4" style={{ width: "380px" }}>
-                <h2 className="fw-bold text-center mb-4">Welcome Back</h2>
+        <AuthLayout title="Welcome back" subtitle="Sign in to see and pay for your bookings.">
 
                 {location.state?.registered && (
                     <div className="alert alert-success py-2">
@@ -67,10 +63,10 @@ function Login() {
 
                 <form onSubmit={handleSubmit}>
                     <div className="mb-3">
-                        <label className="form-label">Email</label>
+                        <label className="form-label small fw-semibold text-secondary">Email</label>
                         <input
                             type="email"
-                            className="form-control"
+                            className="form-control form-control-lg fs-6 rounded-3"
                             placeholder="you@example.com"
                             value={EmailAddress}
                             onChange={(e) => setEmail(e.target.value)}
@@ -79,10 +75,10 @@ function Login() {
                     </div>
 
                     <div className="mb-3">
-                        <label className="form-label">Password</label>
+                        <label className="form-label small fw-semibold text-secondary">Password</label>
                         <input
                             type="password"
-                            className="form-control"
+                            className="form-control form-control-lg fs-6 rounded-3"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -92,19 +88,18 @@ function Login() {
 
                     <button
                         type="submit"
-                        className="btn btn-dark w-100"
+                        className="btn btn-accent btn-lg rounded-pill w-100 fs-6 mt-2"
                         disabled={submitting}
                     >
                         {submitting ? "Logging in..." : "Login"}
                     </button>
                 </form>
 
-                <p className="text-center text-muted mt-3 mb-0">
+                <p className="text-center text-secondary mt-4 mb-0">
                     New here?{" "}
-                    <Link to="/register">Create an account</Link>
+                    <Link to="/register" className="fw-semibold">Create an account</Link>
                 </p>
-            </div>
-        </div>
+        </AuthLayout>
     );
 }
 

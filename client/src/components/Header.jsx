@@ -3,6 +3,20 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../api";
 import { clearSession, getSession } from "../auth";
 import { useVoice } from "../context/VoiceContext";
+import { ChartIcon, CloseIcon, LogoutIcon, MenuIcon, UserIcon, WalletIcon } from "./Icons";
+
+// Height the floating header takes at the top of the page. Full-bleed page
+// tops pull themselves up by this much so the glass header sits over them.
+export const NAV_HEIGHT = 80;
+
+const LINKS = [
+    { to: "/", label: "Home" },
+    { to: "/#destinations", label: "Explore" },
+    { to: "/hotels", label: "Hotels" },
+    { to: "/my-bookings", label: "My Bookings", private: true },
+    { to: "/#why-us", label: "About" },
+    { to: "/#footer", label: "Contact" },
+];
 
 function Header() {
 
@@ -17,6 +31,7 @@ function Header() {
     );
 
     const [showProfile, setShowProfile] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
     const [profile, setProfile] = useState(null);
 
     useEffect(() => {
@@ -24,6 +39,7 @@ function Header() {
         // showing a logged-in state once the 7-day login runs out.
         setToken(getSession()?.token ?? null);
         setUser(JSON.parse(localStorage.getItem("user") || "null"));
+        setMenuOpen(false);
     }, [location]);
 
     useEffect(() => {
@@ -59,93 +75,137 @@ function Header() {
         navigate("/");
     };
 
+    const here = location.pathname + location.hash;
+    const isActive = (to) => (to === "/" ? here === "/" : here === to);
+    const links = LINKS.filter((link) => !link.private || token);
+
+    const linkClass = (to) =>
+        `nav-link px-3 py-2 rounded-pill ${isActive(to) ? "text-accent fw-semibold bg-white bg-opacity-10" : "text-white text-opacity-75"}`;
+
     return (
-        <nav
-            className="navbar navbar-expand-lg sticky-top px-4 py-3 gradient-navy"
-            style={{ zIndex: 1030 }}
-        >
-            <div className="container-fluid">
-                <Link className="navbar-brand fw-bold text-white fs-4" to="/">
-                    Echo<span className="text-gold">Stay</span>
+        <header className="sticky-top px-2 px-md-3 pt-2 pt-md-3" style={{ zIndex: 1030, height: NAV_HEIGHT, pointerEvents: "none" }}>
+            <nav
+                className="glass-dark shadow-lg container-xl d-flex align-items-center justify-content-between px-3 px-lg-4 position-relative"
+                style={{ height: 60, pointerEvents: "auto" }}
+            >
+                <Link className="navbar-brand fw-bold text-white fs-4 me-0" to="/">
+                    Echo<span className="text-accent">Stay</span>
                 </Link>
 
-                <div className="d-none d-lg-flex align-items-center gap-4 mx-auto">
-                    <Link className="nav-link text-white" to="/">Home</Link>
-                    <Link className="nav-link text-white" to="/#destinations">Explore</Link>
-                    <Link className="nav-link text-white" to="/hotels">Hotels</Link>
-                    {token && (
-                        <Link className="nav-link text-white" to="/my-bookings">My Bookings</Link>
-                    )}
-                    <Link className="nav-link text-white" to="/#why-us">About</Link>
-                    <Link className="nav-link text-white" to="/#footer">Contact</Link>
+                <div className="d-none d-lg-flex align-items-center gap-1">
+                    {links.map((link) => (
+                        <Link key={link.to} className={linkClass(link.to)} to={link.to}>
+                            {link.label}
+                        </Link>
+                    ))}
                 </div>
 
-                {!token ? (
-                    <div className="d-flex gap-2">
-                        <Link to="/login">
-                            <button className="btn btn-outline-glass btn-sm">Sign In</button>
-                        </Link>
-                        <Link to="/register">
-                            <button className="btn btn-gold btn-sm">Sign Up</button>
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="position-relative" ref={dropdownRef}>
-                        <button
-                            className="btn btn-outline-glass rounded-circle"
-                            style={{ width: "42px", height: "42px" }}
-                            onClick={openProfile}
-                        >
-                            {user?.firstName?.[0]?.toUpperCase() || "U"}
-                        </button>
-
-                        {showProfile && (
-                            <div
-                                className="glass-card shadow-lg p-3 position-absolute end-0 mt-2"
-                                style={{ width: "240px", zIndex: 1050 }}
+                <div className="d-flex align-items-center gap-2">
+                    {!token ? (
+                        <>
+                            <Link to="/login" className="btn btn-outline-glass btn-sm rounded-pill px-3 d-none d-sm-inline-block">
+                                Sign In
+                            </Link>
+                            <Link to="/register" className="btn btn-accent btn-sm rounded-pill px-3">
+                                Sign Up
+                            </Link>
+                        </>
+                    ) : (
+                        <div className="position-relative" ref={dropdownRef}>
+                            <button
+                                className="btn btn-accent rounded-circle p-0 fw-bold"
+                                style={{ width: 40, height: 40 }}
+                                onClick={openProfile}
+                                aria-label="Account menu"
+                                aria-expanded={showProfile}
                             >
-                                <p className="fw-bold mb-1">
-                                    {profile?.firstName || user?.firstName} {profile?.lastName || ""}
-                                </p>
+                                {user?.firstName?.[0]?.toUpperCase() || "U"}
+                            </button>
 
-                                {profile?.EmailAddress && (
-                                    <p className="text-muted small mb-2">{profile.EmailAddress}</p>
-                                )}
-
-                                <p className="text-muted small mb-3 text-capitalize">
-                                    Role: {user?.role || "user"}
-                                </p>
-
-                                <Link
-                                    to="/my-bookings"
-                                    className="btn btn-sm btn-outline-dark w-100 mb-2"
-                                    onClick={() => setShowProfile(false)}
+                            {showProfile && (
+                                <div
+                                    className="bg-white rounded-4 shadow-lg p-2 position-absolute end-0 mt-3"
+                                    style={{ width: 260, zIndex: 1050 }}
                                 >
-                                    My Bookings
-                                </Link>
+                                    <div className="d-flex align-items-center gap-3 p-2 mb-1">
+                                        <div
+                                            className="gradient-dark text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                            style={{ width: 42, height: 42 }}
+                                        >
+                                            {user?.firstName?.[0]?.toUpperCase() || "U"}
+                                        </div>
+                                        <div className="text-truncate">
+                                            <div className="fw-semibold text-truncate">
+                                                {profile?.firstName || user?.firstName} {profile?.lastName || ""}
+                                            </div>
+                                            {profile?.EmailAddress && (
+                                                <div className="text-muted small text-truncate">{profile.EmailAddress}</div>
+                                            )}
+                                            <span className="badge rounded-pill text-bg-light border text-capitalize mt-1">
+                                                {user?.role || "user"}
+                                            </span>
+                                        </div>
+                                    </div>
 
-                                {user?.role === "admin" && (
+                                    <hr className="my-1" />
+
                                     <Link
-                                        to="/admin"
-                                        className="btn btn-sm btn-outline-dark w-100 mb-2"
+                                        to="/my-bookings"
+                                        className="btn btn-light w-100 text-start d-flex align-items-center gap-2 border-0 bg-transparent"
                                         onClick={() => setShowProfile(false)}
                                     >
-                                        Admin Dashboard
+                                        <WalletIcon size={18} /> My Bookings
                                     </Link>
-                                )}
 
-                                <button
-                                    className="btn btn-sm btn-dark w-100"
-                                    onClick={handleLogout}
-                                >
-                                    Logout
-                                </button>
-                            </div>
+                                    {user?.role === "admin" && (
+                                        <Link
+                                            to="/admin"
+                                            className="btn btn-light w-100 text-start d-flex align-items-center gap-2 border-0 bg-transparent"
+                                            onClick={() => setShowProfile(false)}
+                                        >
+                                            <ChartIcon size={18} /> Admin Dashboard
+                                        </Link>
+                                    )}
+
+                                    <button
+                                        className="btn btn-light w-100 text-start d-flex align-items-center gap-2 border-0 bg-transparent text-danger"
+                                        onClick={handleLogout}
+                                    >
+                                        <LogoutIcon size={18} /> Logout
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <button
+                        type="button"
+                        className="btn btn-outline-glass rounded-circle p-0 d-lg-none"
+                        style={{ width: 40, height: 40 }}
+                        onClick={() => setMenuOpen((open) => !open)}
+                        aria-label={menuOpen ? "Close menu" : "Open menu"}
+                        aria-expanded={menuOpen}
+                    >
+                        {menuOpen ? <CloseIcon size={20} /> : <MenuIcon size={20} />}
+                    </button>
+                </div>
+
+                {menuOpen && (
+                    <div className="gradient-dark rounded-4 shadow-lg position-absolute start-0 end-0 p-2 d-lg-none" style={{ top: 68 }}>
+                        {links.map((link) => (
+                            <Link key={link.to} className={`${linkClass(link.to)} d-block`} to={link.to}>
+                                {link.label}
+                            </Link>
+                        ))}
+                        {!token && (
+                            <Link to="/login" className="nav-link px-3 py-2 text-white d-flex align-items-center gap-2 d-sm-none">
+                                <UserIcon size={18} /> Sign In
+                            </Link>
                         )}
                     </div>
                 )}
-            </div>
-        </nav>
+            </nav>
+        </header>
     );
 }
 

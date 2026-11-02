@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { formatPrice } from "../utils/formatPrice";
 import { Link } from "react-router-dom";
 import api from "../api";
+import PageHeader from "../components/PageHeader";
+import { BuildingIcon, CardIcon, ChartIcon, UsersIcon, WalletIcon } from "../components/Icons";
 
 const HANDLED_LABELS = {
     local: "Understood locally",
@@ -17,8 +19,8 @@ function VoiceUsage({ voice }) {
     const row = (key) => voice.byPath.find((p) => p.handledBy === key);
 
     return (
-        <div className="card border-0 shadow-sm p-3 mt-4">
-            <h4 className="mb-1">Voice Assistant (last {voice.days} days)</h4>
+        <div className="card border-0 rounded-4 shadow-sm p-4 mt-4">
+            <h5 className="fw-bold mb-1">Voice assistant (last {voice.days} days)</h5>
             <p className="text-muted small mb-3">
                 {voice.total} phrases. Local rules are free and instant; the AI is only asked when they can't tell.
             </p>
@@ -30,9 +32,9 @@ function VoiceUsage({ voice }) {
                     <div className="row g-3 mb-3">
                         {Object.keys(HANDLED_LABELS).map((key) => (
                             <div className="col-md-3 col-sm-6" key={key}>
-                                <div className="border rounded text-center p-2 h-100">
+                                <div className="rounded-3 bg-light text-center p-3 h-100">
                                     <h6 className="text-muted small mb-1">{HANDLED_LABELS[key]}</h6>
-                                    <div className="fw-bold fs-4 text-gold">{percent(row(key)?.share || 0)}</div>
+                                    <div className="fw-bold fs-3 text-warning">{percent(row(key)?.share || 0)}</div>
                                     <div className="small text-muted">
                                         {row(key)?.count || 0} phrases
                                         {row(key)?.avgMs != null && key !== "offline" && ` · avg ${row(key).avgMs} ms`}
@@ -42,9 +44,9 @@ function VoiceUsage({ voice }) {
                         ))}
                     </div>
 
-                    <h6>Phrases the local rules missed most</h6>
+                    <h6 className="fw-bold">Phrases the local rules missed most</h6>
                     {voice.topPhrases.length > 0 ? (
-                        <table className="table table-sm align-middle mb-0">
+                        <table className="table table-hover align-middle mb-0 small">
                             <thead>
                                 <tr>
                                     <th>Phrase</th>
@@ -94,38 +96,40 @@ function AdminDashboard() {
 
     if (!stats) {
         return (
-            <div className="container py-5 text-center">
-                <h2>Loading Dashboard...</h2>
+            <div className="container py-5 text-center text-secondary">
+                <div className="spinner-border text-warning mb-3" role="status" />
+                <p>Loading dashboard…</p>
             </div>
         );
     }
 
     const statCards = [
-        { label: "Total Users", value: stats.totalUsers },
-        { label: "Total Bookings", value: stats.totalBookings },
-        { label: "Total Payments", value: stats.totalPayments },
-        { label: "Total Revenue", value: formatPrice(stats.totalRevenue) },
+        { label: "Total Users", value: stats.totalUsers, icon: <UsersIcon size={22} /> },
+        { label: "Total Bookings", value: stats.totalBookings, icon: <BuildingIcon size={22} /> },
+        { label: "Total Payments", value: stats.totalPayments, icon: <CardIcon size={22} /> },
+        { label: "Total Revenue", value: formatPrice(stats.totalRevenue), icon: <WalletIcon size={22} /> },
     ];
 
     return (
         <div>
-            <div className="gradient-navy text-white py-4">
-                <div className="container d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h1 className="fw-bold mb-0">Admin Dashboard</h1>
+            <PageHeader eyebrow="Admin" title="Dashboard" subtitle="Bookings, payments and how the voice assistant is doing." overlap>
+                <Link to="/admin/hotels" className="btn btn-accent rounded-pill px-4 d-inline-flex align-items-center gap-2">
+                    <ChartIcon size={18} /> Manage Hotels
+                </Link>
+            </PageHeader>
 
-                    <Link to="/admin/hotels">
-                        <button className="btn btn-gold">Manage Hotels</button>
-                    </Link>
-                </div>
-            </div>
-
-            <div className="container py-4">
+            <div className="container position-relative pb-5" style={{ marginTop: -56 }}>
                 <div className="row g-3 mb-4">
                     {statCards.map((card) => (
-                        <div className="col-md-3 col-sm-6" key={card.label}>
-                            <div className="card border-0 shadow-sm text-center p-3 h-100 hover-lift">
-                                <h6 className="text-muted">{card.label}</h6>
-                                <h2 className="fw-bold mb-0 text-gold">{card.value}</h2>
+                        <div className="col-lg-3 col-sm-6" key={card.label}>
+                            <div className="card border-0 rounded-4 shadow-sm p-4 h-100 hover-lift d-flex flex-row align-items-center gap-3">
+                                <div className="rounded-3 bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 48, height: 48 }}>
+                                    {card.icon}
+                                </div>
+                                <div>
+                                    <div className="text-secondary small">{card.label}</div>
+                                    <div className="fw-bold fs-4">{card.value}</div>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -133,11 +137,11 @@ function AdminDashboard() {
 
                 <div className="row g-4">
                     <div className="col-md-6">
-                        <div className="card border-0 shadow-sm p-3">
-                            <h4 className="mb-3">Recent Bookings</h4>
+                        <div className="card border-0 rounded-4 shadow-sm p-4 h-100">
+                            <h5 className="fw-bold mb-3">Recent bookings</h5>
 
                             {stats.recentBookings?.length > 0 ? (
-                                <table className="table table-sm align-middle mb-0">
+                                <table className="table table-hover align-middle mb-0 small">
                                     <thead>
                                         <tr>
                                             <th>#</th>
@@ -164,11 +168,11 @@ function AdminDashboard() {
                     </div>
 
                     <div className="col-md-6">
-                        <div className="card border-0 shadow-sm p-3">
-                            <h4 className="mb-3">Recent Payments</h4>
+                        <div className="card border-0 rounded-4 shadow-sm p-4 h-100">
+                            <h5 className="fw-bold mb-3">Recent payments</h5>
 
                             {stats.recentPayments?.length > 0 ? (
-                                <table className="table table-sm align-middle mb-0">
+                                <table className="table table-hover align-middle mb-0 small">
                                     <thead>
                                         <tr>
                                             <th>#</th>

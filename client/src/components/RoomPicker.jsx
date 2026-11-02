@@ -17,7 +17,7 @@ function RoomPicker({ rooms, nights, guests, selectedId, onSelect, loading }) {
         return (
           <label
             key={room.id}
-            className={`card p-3 border ${selected ? "border-warning border-2" : ""}`}
+            className={`card p-3 rounded-3 ${selected ? "border-warning border-2 bg-warning bg-opacity-10" : "border"}`}
             style={{ cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}
           >
             <div className="d-flex align-items-center gap-3">
