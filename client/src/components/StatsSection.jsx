@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import api from "../api";
 
 function CountUp({ end, suffix = "", duration = 1500 }) {
   const [value, setValue] = useState(0);
@@ -45,20 +46,34 @@ function CountUp({ end, suffix = "", duration = 1500 }) {
   );
 }
 
-function StatsSection({ hotelCount, cityCount }) {
+// Every number here is counted from the database (GET /stats). "Happy guests"
+// is the share of 4-5 star reviews, so it only appears once there are reviews.
+function StatsSection() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    api.get("/stats").then((res) => setData(res.data)).catch(() => setData(null));
+  }, []);
+
+  if (!data) return null;
+
   const stats = [
-    { value: hotelCount, suffix: "+", label: "Hotels" },
-    { value: cityCount, suffix: "+", label: "Cities" },
-    { value: 500, suffix: "+", label: "Bookings" },
-    { value: 98, suffix: "%", label: "Happy Customers" },
-  ];
+    { value: data.hotels, label: "Hotels" },
+    { value: data.cities, label: "Cities" },
+    { value: data.bookings, label: "Paid bookings" },
+    data.happyPercent !== null && {
+      value: data.happyPercent,
+      suffix: "%",
+      label: `Happy guests · ${data.reviews} review${data.reviews === 1 ? "" : "s"}`,
+    },
+  ].filter(Boolean);
 
   return (
-    <section className="container pb-5 reveal">
+    <section className="container pb-5">
       <div className="bg-white rounded-4 shadow-sm p-4 p-lg-5">
-        <div className="row text-center g-4">
+        <div className="row text-center g-4 justify-content-center">
           {stats.map((stat) => (
-            <div className="col-md-3 col-6" key={stat.label}>
+            <div className={`col-6 col-md-${12 / stats.length}`} key={stat.label}>
               <CountUp end={stat.value} suffix={stat.suffix} />
               <p className="mb-0 mt-1 text-secondary small text-uppercase fw-semibold">{stat.label}</p>
             </div>

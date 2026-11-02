@@ -142,7 +142,7 @@ function Home() {
           <PopularDestinations hotels={allHotels} onSelectCity={(city) => goToHotels(city)} />
           <TopHotelsSection hotels={topHotels} />
           <WhyChooseSection />
-          <StatsSection hotelCount={hotelCount} cityCount={cityCount} />
+          <StatsSection />
           <TestimonialsSection />
         </>
       )}

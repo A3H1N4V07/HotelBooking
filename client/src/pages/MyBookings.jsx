@@ -3,6 +3,7 @@ import { formatPrice } from "../utils/formatPrice";
 import api from "../api";
 import { Link } from "react-router-dom";
 import HoldNotice from "../components/HoldNotice";
+import ReviewForm from "../components/ReviewForm";
 import { useVoice } from "../context/VoiceContext";
 import PageHeader from "../components/PageHeader";
 import { BedIcon, CalendarIcon, DownloadIcon, MapPinIcon, UsersIcon } from "../components/Icons";
@@ -167,6 +168,13 @@ function MyBookings() {
                               Book again
                             </Link>
                           )}
+
+                          <ReviewForm
+                            booking={booking}
+                            onSaved={(review) =>
+                              setBookings((list) => list.map((b) => (b.id === booking.id ? { ...b, Review: review } : b)))
+                            }
+                          />
                         </div>
                       </div>
                     </div>
