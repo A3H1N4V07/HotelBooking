@@ -67,6 +67,7 @@ flowchart TD
 - A new booking holds the room for **15 minutes** while the guest pays. Unpaid bookings can be cancelled from the payment page, from My Bookings, or by voice ("cancel booking"), which releases the room at once.
 - Payments go through Stripe with idempotency keys (no double charge on retries). Stripe's webhook is the source of truth, so a booking is marked paid even if the browser loses the response.
 - Paying for a cancelled booking, or after the hold expired and the room was taken, is refused before the card is charged.
+- Once a paid stay has started, the guest can rate it (1-5 stars and an optional comment) from My Bookings, once per booking. The home page shows the latest reviews, and its stats (hotels, cities, paid bookings, share of 4-5 star reviews) are counted from the database.
 
 ---
 
@@ -159,5 +160,5 @@ Create `client/.env` with:
 | `/hotels/:id` | Hotel details and booking form |
 | `/login`, `/register` | Account |
 | `/payment/:bookingId` | Card payment, or cancel an unpaid booking (logged in) |
-| `/my-bookings` | Bookings, invoices, cancel unpaid bookings (logged in) |
+| `/my-bookings` | Bookings, invoices, cancel unpaid bookings, rate past stays (logged in) |
 | `/admin`, `/admin/hotels` | Dashboard with voice usage stats, and hotel management (admins) |
