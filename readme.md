@@ -1,5 +1,7 @@
 # 🌐 EchoStay – Audio-Based Hotel Booking Website
 
+**Live demo:** https://echostay.vercel.app (Stripe test mode: card `4242 4242 4242 4242`, any future date, any CVC). The API runs on a free Render instance, so the first request after a quiet spell can take up to a minute.
+
 ## 📝 Problem Description
 Traditional online hotel booking platforms require users to manually enter multiple details such as destination, dates, guest count, and personal information. This process can be time-consuming, confusing for non-technical users, and inconvenient when multitasking or traveling. There is a clear need for a hands-free, intuitive, and conversational booking experience that reduces user effort and eliminates the complexity of navigating through multiple screens or forms.
 
@@ -122,6 +124,8 @@ Create `server/.env` with these variables (values not shown — never commit thi
 | `TRUST_PROXY` | Optional. Set when running behind a reverse proxy |
 | `PORT` | Optional. Defaults to `3001` |
 | `NODE_ENV` | Optional. Selects the database config in `config/config.js` (`development` by default) |
+| `DATABASE_URL` | Production only. MySQL URL, e.g. `mysql://user:pass@host:port/db` (used instead of the `DB_*` variables) |
+| `DB_SSL`, `DB_SSL_CA` | Production only. `DB_SSL=true` connects over TLS; `DB_SSL_CA` holds the provider's CA certificate (PEM) if it isn't publicly trusted |
 
 #### Stripe webhook
 Stripe reports every payment result to `POST /payment/webhook`. This is what marks a booking as paid even if the browser request was lost after the card was charged, so run it in development too:
@@ -148,6 +152,23 @@ Create `client/.env` with:
 |---|---|
 | `REACT_APP_API_URL` | Server URL, e.g. `http://localhost:3001` |
 | `REACT_APP_STRIPE_PUBLIC_KEY` | Stripe publishable key |
+
+---
+
+## ☁️ Deployment
+
+The live demo runs on free tiers:
+
+| Part | Host | Setup |
+|---|---|---|
+| Client | Vercel | Root directory `client`, Create React App preset, Node 22. Set `REACT_APP_API_URL` to the API's URL and `REACT_APP_STRIPE_PUBLIC_KEY`. `client/vercel.json` sends every path to `index.html` so links like `/hotels/2` open directly. Every push to `main` redeploys. |
+| API | Render (web service) | Build `cd server && npm ci`, start `cd server && npm run db:migrate && npm start`. Set the server variables above with `NODE_ENV=production`, `DATABASE_URL`, `DB_SSL=true`, `DB_SSL_CA`, `CLIENT_ORIGIN` (the Vercel URL), `SERVER_PUBLIC_URL` and `TRUST_PROXY=1`. |
+| Database | Aiven MySQL | Free plan. Migrations run on every API start. |
+
+Notes for the free setup:
+- Render's free instance sleeps after 15 idle minutes, and its disk is wiped on each deploy, so hotel images uploaded from the admin page don't survive a redeploy.
+- Use a fresh, long `JWT_SECRET` in production, not the local one.
+- The Stripe webhook is optional here (payments are also recorded when the card is confirmed); add it in the Stripe Dashboard as described above for extra safety.
 
 ---
 
